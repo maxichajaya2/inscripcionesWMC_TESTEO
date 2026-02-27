@@ -524,7 +524,11 @@ class InscripcionController extends Controller
 
         $inscripcion = new Inscripcion;
         $inscripcion->id_persona = $persona->id;
-        $inscripcion->id_categoria_inscripcion = $categoria->id;
+        if ($request->input('section') === 'viajes') {
+            $inscripcion->id_categoria_inscripcion = null; // No asignamos categoría de inscripción para tours/cursos
+        } else {
+            $inscripcion->id_categoria_inscripcion = $categoria->id;
+        }
         $inscripcion->id_categoria_cursos_viajes = json_decode($request->input('extras_seleccionados'), true);
         $inscripcion->id_facturacion = $facturacion->id;
         $inscripcion->usuario_creacion = $persona->id;
@@ -739,6 +743,13 @@ class InscripcionController extends Controller
             // }
 
             // Ejecutar el servicio
+
+            // dd('LLEGÓ A GENERAR EL SERVICIO WMC', [
+            //     'FACTURACION' => $facturacion,
+            //     'PERSONA' => $persona,
+            //     'INSCRIPCION' => $inscripcion,
+            //     'NIUBIZ' => $niubiz
+            // ]);
             $service_wmc = app(\App\Http\Controllers\WebServiceController::class)
                 ->wsInscripcion_WMC_2026($facturacion, $persona, $inscripcion, $niubiz);
             //  dd($service_wmc);
