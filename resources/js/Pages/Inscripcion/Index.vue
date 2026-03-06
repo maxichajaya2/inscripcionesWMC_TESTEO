@@ -313,7 +313,7 @@ const scrollToCategories = () => {
                                     Registration
                                 </span>
                                 <h5 class="text-2xl font-black text-white group-hover:text-cyan-200 transition-colors">
-                                    SPECIAL AUTHOR
+                                    SELECTED AUTHOR
                                 </h5>
                                 <p class="text-xs text-gray-400 mt-1 group-hover:text-yellow-100/70 transition-colors">
                                     Exclusive registration for authors whose papers have been accepted and selected as
