@@ -28,12 +28,16 @@ const esSocio = ref(false);
 const hasSearched = ref(false);
 const noEncontrado = ref(false);
 const alphanumericMessage = ref('');
+const mensajeErrorAutor = ref('');
+const correoEsValidoAutor = ref(true);
 
 const props = defineProps({
     saved_values: Object,
     tipo_origen: Number,
-    perfil_id: Number
+    perfil_id: Number,
+    autores: Array
 });
+
 
 const dniMessage = ref('');
 const schema = yup.object({
@@ -140,6 +144,23 @@ const searchPerson = async () => {
 
             esSocio.value = p.es_socio;
 
+            if (props.autores && props.autores.length > 0) {
+                const existeEnAutores = props.autores.some(a =>
+                    a.autor_correo.toLowerCase().trim() === p.correo?.toLowerCase().trim()
+                );
+
+                if (!existeEnAutores) {
+                    mensajeErrorAutor.value = "The email associated with this ID (" + p.correo + ") is not registered in the Authors list.";
+                    correoEsValidoAutor.value = false;
+                    loadingSearch.value = false;
+                    return; // Bloqueamos el flujo
+                }
+            }
+
+            // Si pasa la validación, procedemos
+            hasSearched.value = true;
+            correoEsValidoAutor.value = true;
+
             setValues({
                 tipo_doc: p.id_tipo_documento,
                 documento: p.documento,
@@ -181,6 +202,7 @@ const searchPerson = async () => {
         loadingSearch.value = false;
     }
 };
+
 
 const onlyNumberKey = (event) => {
     const charCode = event.which ? event.which : event.keyCode;
@@ -324,7 +346,8 @@ defineExpose({
     getValidacionDoc,
     esSocio,
     hasSearched,
-    esCategoriaDeSocio
+    esCategoriaDeSocio,
+    correoEsValidoAutor
 });
 
 const onlyPhoneKeys = (event) => {
@@ -401,6 +424,31 @@ const onlyAlphanumericKey = (event) => {
     return true;
 };
 
+const handleAutorChange = (event) => {
+    const data = event.value; // Aquí viene todo el objeto del autor/trabajo
+    if (data) {
+        setValues({
+            ...values,
+            nombres: data.autor_nombre || '',
+            apellido_paterno: '', // El excel no separa apellidos, podrías ponerlo todo en nombres o procesarlo
+            correo: data.autor_correo || '',
+            celular: data.autor_celular || '',
+            empresa: data.autor_empresa || '',
+            // Puedes agregar más campos si los tienes
+        });
+
+        // Marcamos como buscado para que se desbloqueen los campos
+        hasSearched.value = true;
+
+        toast.add({
+            severity: 'info',
+            summary: 'Data Loaded',
+            detail: `Information for ${data.correlativo} loaded`,
+            life: 3000
+        });
+    }
+};
+
 // Creamos estados individuales para los campos principales
 const bloqueoNombres = computed(() => esCampoBloqueado(nombres.value));
 const bloqueoApellidos = computed(() => esCampoBloqueado(apellido_paterno.value));
@@ -457,6 +505,21 @@ watch(() => props.tipo_origen, async (newOrigen) => {
     }
 }, { immediate: true });
 
+watch(correo, (newCorreo) => {
+    if (props.autores && props.autores.length > 0 && newCorreo) {
+        const esAutor = props.autores.some(a =>
+            a.autor_correo.toLowerCase().trim() === newCorreo.toLowerCase().trim()
+        );
+
+        if (!esAutor) {
+            mensajeErrorAutor.value = "This email is not registered as a valid Author for WMC 2026.";
+            correoEsValidoAutor.value = false;
+        } else {
+            mensajeErrorAutor.value = '';
+            correoEsValidoAutor.value = true;
+        }
+    }
+});
 
 onMounted(() => {
 
@@ -467,6 +530,8 @@ onMounted(() => {
         // Si es extranjero, pon el ID de Passport por defecto, ej: 3
         tipo_doc.value = 5;
     }
+
+    console.log("Lista de Autores recibida:", props.autores);
 });
 
 
@@ -685,12 +750,22 @@ onMounted(() => {
                     </div>
 
                     <div class="grid gap-6 m-6 md:grid-cols-3">
-                        <div class="w-full">
+                        <!-- <div class="w-full">
                             <label for="correo" class="">Email Address <span
                                     class="font-normal text-red-600">*</span></label>
                             <InputText name="correo" v-model="correo" v-bind="correoAttrs" :disabled="bloqueoCorreo"
                                 class="w-full border-green-iimp" />
                             <span class="font-normal text-red-600">{{ errors.correo }}</span>
+                        </div> -->
+                        <div class="w-full">
+                            <label for="correo">Email Address <span class="text-red-600">*</span></label>
+                            <InputText name="correo" v-model="correo" v-bind="correoAttrs" :disabled="bloqueoCorreo"
+                                class="w-full border-green-iimp"
+                                :class="{ 'border-red-500 bg-red-50': mensajeErrorAutor }" />
+                            <small v-if="mensajeErrorAutor" class="text-red-600 font-bold block mt-1 animate-pulse">
+                                <i class="pi pi-times-circle mr-1"></i> {{ mensajeErrorAutor }}
+                            </small>
+                            <span v-else class="font-normal text-red-600">{{ errors.correo }}</span>
                         </div>
                         <div class="w-full">
                             <label for="celular" class="">Phone Number <span

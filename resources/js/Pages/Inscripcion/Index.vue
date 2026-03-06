@@ -301,7 +301,7 @@ const scrollToCategories = () => {
                             </div>
                         </button>
 
-                        <!-- <button @click="seleccionarGrupo('autor')" v-if="macroSeccion === 'inscripciones'"
+                        <button @click="seleccionarGrupo('autor')" v-if="macroSeccion === 'inscripciones'"
                             :class="grupoSeleccionado === 'autor'
                                 ? 'bg-cyan-900/40 border-cyan-400 shadow-[0_0_35px_rgba(34,211,238,0.6)] scale-105 ring-1 ring-cyan-300'
                                 : 'bg-white/5 border-white/10 hover:bg-white/10 hover:border-cyan-500 hover:shadow-[0_0_20px_rgba(34,211,238,0.3)]'"
@@ -327,7 +327,7 @@ const scrollToCategories = () => {
                                 class="p-4 rounded-2xl transition-all duration-300">
                                 <GreenArrowRight class="w-6 h-6 invert brightness-200" />
                             </div>
-                        </button> -->
+                        </button>
                     </div>
                 </div>
 

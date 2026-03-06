@@ -20,7 +20,7 @@ use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
 use App\Models\CategoriaCursoViaje;
 use App\Models\Precio;
-
+use App\Models\Autor;
 
 class InscripcionController extends Controller
 {
@@ -102,6 +102,12 @@ class InscripcionController extends Controller
                 return $cat;
             });
 
+        $autores = [];
+
+        if ($perfil_id == 1 || $perfil_id == 2 || $perfil_id == 3 || $perfil_id == 4) {
+            $autores = Autor::orderBy('correlativo', 'ASC')->get();
+        }
+
         $perfilesPermitidos = [1, 2, 3, 5, 6, 7];
 
 
@@ -140,7 +146,8 @@ class InscripcionController extends Controller
             'adicionales' => $adicionales,
             'title' => $title,
             'section' => $section,
-            'perfil_id' => (int) $perfil_id, // Forzamos a entero
+            'perfil_id' => (int) $perfil_id,
+            'autores' => $autores
         ]);
     }
 
