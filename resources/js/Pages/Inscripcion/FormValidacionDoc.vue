@@ -144,7 +144,23 @@ const searchPerson = async () => {
 
             esSocio.value = p.es_socio;
 
-            if (props.autores && props.autores.length > 0) {
+
+
+            setValues({
+                tipo_doc: p.id_tipo_documento,
+                documento: p.documento,
+                nombres: p.nombres || '',
+                apellido_paterno: p.apellido_paterno || '',
+                correo: p.correo || '',
+                celular: p.celular || '',
+                direccionPersona: p.direccionPersona || p.direccion?.direccion || '',
+                empresa: p.empresa_nombre || p.empresa || '',
+                pais: p.pais || p.id_pais || paisAsignado,
+                sexo: p.sexo || '',
+                fecha_nacimiento: p.fecha_nacimiento ? new Date(p.fecha_nacimiento) : null
+            });
+
+               if (props.autores && props.autores.length > 0) {
                 const existeEnAutores = props.autores.some(a =>
                     a.autor_correo.toLowerCase().trim() === p.correo?.toLowerCase().trim()
                 );
@@ -160,20 +176,6 @@ const searchPerson = async () => {
             // Si pasa la validación, procedemos
             hasSearched.value = true;
             correoEsValidoAutor.value = true;
-
-            setValues({
-                tipo_doc: p.id_tipo_documento,
-                documento: p.documento,
-                nombres: p.nombres || '',
-                apellido_paterno: p.apellido_paterno || '',
-                correo: p.correo || '',
-                celular: p.celular || '',
-                direccionPersona: p.direccionPersona || p.direccion?.direccion || '',
-                empresa: p.empresa_nombre || p.empresa || '',
-                pais: p.pais || p.id_pais || paisAsignado,
-                sexo: p.sexo || '',
-                fecha_nacimiento: p.fecha_nacimiento ? new Date(p.fecha_nacimiento) : null
-            });
 
             toast.add({ severity: 'success', summary: 'Found', detail: 'Information loaded successfully', life: 3000 });
         } else {
