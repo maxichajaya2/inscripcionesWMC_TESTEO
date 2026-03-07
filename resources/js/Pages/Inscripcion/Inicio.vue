@@ -32,7 +32,8 @@ const props = defineProps({
     categorias: Object,
     adicionales: Array,
     section: String,
-    perfil_id: Number
+    perfil_id: Number,
+    autores: Array
 })
 
 
@@ -427,6 +428,7 @@ watch(activeStep, () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
 });
 
+
 </script>
 
 <template>
@@ -469,25 +471,28 @@ watch(activeStep, () => {
                         <StepPanel v-slot="{ activateCallback }" value="1"
                             class="rounded-2xl border-2 border-green-iimp bg-white-price shadow-wmc">
                             <FormValidacionDoc ref="childFormValidacionDoc" :tipo_origen="tipo_origen"
-                                :perfil_id="props.perfil_id" />
+                                :autores="autores" :perfil_id="props.perfil_id" />
                             <div
                                 class="sticky bottom-0 left-0 w-full p-4 md:p-6 bg-white/95 backdrop-blur-md border-t border-gray-200 shadow-[0_-5px_20px_rgba(0,0,0,0.1)] z-[50] flex justify-end gap-3 rounded-b-2xl">
 
                                 <Button label="Validate" icon="pi pi-arrow-right" iconPos="right"
                                     class="bg-degradient border-rounded-full" :loading="loading"
-                                    :perfil_id="props.perfil_id"
-                                    :disabled="childFormValidacionDoc?.esCategoriaDeSocio && childFormValidacionDoc?.hasSearched && !childFormValidacionDoc?.esSocio"
-                                    @click="async () => {
-                                        const isValid = await validate('Documento');
+                                    :perfil_id="props.perfil_id" :disabled="
+                                        // 1. Bloqueo si es categoría de socio y no es socio
+                                        (childFormValidacionDoc?.esCategoriaDeSocio && childFormValidacionDoc?.hasSearched && !childFormValidacionDoc?.esSocio) ||
+                                        // 2. NUEVO BLOQUEO: Si el correo no es válido para autores
+                                        (childFormValidacionDoc?.correoEsValidoAutor === false)
+                                        " @click="async () => {
+                                            const isValid = await validate('Documento');
 
-                                        if (isValid) {
-                                            if (childFormValidacionDoc?.esCategoriaDeSocio) {
-                                                if (childFormValidacionDoc?.esSocio) activateCallback('2');
-                                            } else {
-                                                activateCallback('2');
+                                            if (isValid) {
+                                                if (childFormValidacionDoc?.esCategoriaDeSocio) {
+                                                    if (childFormValidacionDoc?.esSocio) activateCallback('2');
+                                                } else {
+                                                    activateCallback('2');
+                                                }
                                             }
-                                        }
-                                    }" />
+                                        }" />
                             </div>
                         </StepPanel>
 
@@ -567,142 +572,140 @@ watch(activeStep, () => {
             }">
 
 
-                <div class="bg-gradient-to-r from-[#001e3d] via-[#002855] to-[#003366] px-8 py-8 border-b-4 border-yellow-500 flex items-left justify-left text-left relative overflow-hidden">
+            <div
+                class="bg-gradient-to-r from-[#001e3d] via-[#002855] to-[#003366] px-8 py-8 border-b-4 border-yellow-500 flex items-left justify-left text-left relative overflow-hidden">
 
 
-                    <div class="relative z-10">
-                        <div class="mb-3 animate-fade-in-up" style="animation-delay: 0.1s;">
-                            <span
-                                class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-yellow-500/10 border border-yellow-500/30 backdrop-blur-md">
-                                <span class="relative flex h-2 w-2">
-                                    <span
-                                        class="animate-ping absolute inline-flex h-full w-full rounded-full bg-yellow-400 opacity-75"></span>
-                                    <span class="relative inline-flex rounded-full h-2 w-2 bg-yellow-500"></span>
-                                </span>
+                <div class="relative z-10">
+                    <div class="mb-3 animate-fade-in-up" style="animation-delay: 0.1s;">
+                        <span
+                            class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-yellow-500/10 border border-yellow-500/30 backdrop-blur-md">
+                            <span class="relative flex h-2 w-2">
                                 <span
-                                    class="text-[10px] font-bold text-yellow-400 uppercase tracking-widest">Registration
-                                    Open</span>
+                                    class="animate-ping absolute inline-flex h-full w-full rounded-full bg-yellow-400 opacity-75"></span>
+                                <span class="relative inline-flex rounded-full h-2 w-2 bg-yellow-500"></span>
                             </span>
+                            <span class="text-[10px] font-bold text-yellow-400 uppercase tracking-widest">Registration
+                                Open</span>
+                        </span>
+                    </div>
+
+                    <h2
+                        class=" text-2xl md:text-4xl text-transparent bg-clip-text bg-gradient-to-r from-yellow-200 via-yellow-400 to-yellow-600">
+                        World Mining Congress 2026
+
+                    </h2>
+                </div>
+            </div>
+
+            <div class="p-8 md:p-12 bg-slate-50 px-4 overflow-y-auto flex-1">
+                <div v-if="bloqueoExtranjero"
+                    class="p-4 mb-6 rounded-xl bg-amber-50 border border-amber-200 flex items-start gap-3 animate-fade-in-up">
+                    <i class="pi pi-info-circle text-amber-600 text-xl mt-0.5"></i>
+                    <p class="text-sm text-amber-800 leading-relaxed">
+                        The <b>International</b> option for Author Members or Member Participants is not available
+                        through
+                        this portal. If you are an international attendee and an active member, please contact
+                        <a href="mailto:asociados@iimp.org.pe"
+                            class="font-bold underline hover:text-amber-900">asociados@iimp.org.pe</a> for
+                        assistance.
+                    </p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+
+
+                    <button @click="seleccionarOrigen('peruano', 1)"
+                        class="group relative h-auto rounded-2xl bg-white border border-slate-200 shadow-lg hover:shadow-2xl hover:shadow-red-900/20 transition-all duration-300 flex flex-col overflow-hidden hover:-translate-y-2">
+
+                        <div class="h-1 w-full bg-red-600"></div>
+
+                        <div class="p-5 md:p-8 flex flex-col items-center text-center h-full">
+                            <div
+                                class="w-16 h-12 md:w-24 md:h-24 mb-4 md:mb-6 relative drop-shadow-lg group-hover:scale-110 transition-transform duration-300">
+                                <svg viewBox="0 0 300 200" class="w-full h-full rounded-lg shadow-sm">
+                                    <rect width="300" height="200" fill="#ffffff" stroke="#e2e8f0" stroke-width="2" />
+                                    <rect width="100" height="200" fill="#D91023" />
+                                    <rect x="200" width="100" height="200" fill="#D91023" />
+                                </svg>
+                                <div class="absolute inset-0 bg-red-500/20 blur-2xl -z-10 rounded-full"></div>
+                            </div>
+
+                            <h3
+                                class="text-xl md:text-2xl font-black text-slate-800 group-hover:text-red-700 transition-colors uppercase">
+                                National
+                            </h3>
+                            <p class="text-xs md:text-sm text-slate-500 mt-2 mb-4 md:mb-8 leading-relaxed font-medium">
+                                Peruvian citizen or resident with DNI.
+                            </p>
+
+                            <div class="mt-auto w-full">
+                                <span
+                                    class="block w-full py-2.5 md:py-3 px-4 rounded-xl bg-gradient-to-r from-red-700 to-red-600 text-white font-bold text-xs md:text-sm tracking-wider uppercase shadow-md group-hover:shadow-lg group-hover:from-red-600 group-hover:to-red-500 transition-all flex items-center justify-center gap-2">
+                                    Continue Purchase <i class="pi pi-arrow-right text-[10px] md:text-xs"></i>
+                                </span>
+                            </div>
                         </div>
-
-                        <h2
-                            class=" text-2xl md:text-4xl text-transparent bg-clip-text bg-gradient-to-r from-yellow-200 via-yellow-400 to-yellow-600">
-                            World Mining Congress 2026
-
-                        </h2>
-                    </div>
-                </div>
-
-                <div class="p-8 md:p-12 bg-slate-50 px-4 overflow-y-auto flex-1">
-                    <div v-if="bloqueoExtranjero"
-                        class="p-4 mb-6 rounded-xl bg-amber-50 border border-amber-200 flex items-start gap-3 animate-fade-in-up">
-                        <i class="pi pi-info-circle text-amber-600 text-xl mt-0.5"></i>
-                        <p class="text-sm text-amber-800 leading-relaxed">
-                            The <b>International</b> option for Author Members or Member Participants is not available
-                            through
-                            this portal. If you are an international attendee and an active member, please contact
-                            <a href="mailto:asociados@iimp.org.pe"
-                                class="font-bold underline hover:text-amber-900">asociados@iimp.org.pe</a> for
-                            assistance.
-                        </p>
-                    </div>
-
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-
-
-                        <button @click="seleccionarOrigen('peruano', 1)"
-                            class="group relative h-auto rounded-2xl bg-white border border-slate-200 shadow-lg hover:shadow-2xl hover:shadow-red-900/20 transition-all duration-300 flex flex-col overflow-hidden hover:-translate-y-2">
-
-                            <div class="h-1 w-full bg-red-600"></div>
-
-                            <div class="p-5 md:p-8 flex flex-col items-center text-center h-full">
-                                <div
-                                    class="w-16 h-12 md:w-24 md:h-24 mb-4 md:mb-6 relative drop-shadow-lg group-hover:scale-110 transition-transform duration-300">
-                                    <svg viewBox="0 0 300 200" class="w-full h-full rounded-lg shadow-sm">
-                                        <rect width="300" height="200" fill="#ffffff" stroke="#e2e8f0"
-                                            stroke-width="2" />
-                                        <rect width="100" height="200" fill="#D91023" />
-                                        <rect x="200" width="100" height="200" fill="#D91023" />
-                                    </svg>
-                                    <div class="absolute inset-0 bg-red-500/20 blur-2xl -z-10 rounded-full"></div>
-                                </div>
-
-                                <h3
-                                    class="text-xl md:text-2xl font-black text-slate-800 group-hover:text-red-700 transition-colors uppercase">
-                                    National
-                                </h3>
-                                <p
-                                    class="text-xs md:text-sm text-slate-500 mt-2 mb-4 md:mb-8 leading-relaxed font-medium">
-                                    Peruvian citizen or resident with DNI.
-                                </p>
-
-                                <div class="mt-auto w-full">
-                                    <span
-                                        class="block w-full py-2.5 md:py-3 px-4 rounded-xl bg-gradient-to-r from-red-700 to-red-600 text-white font-bold text-xs md:text-sm tracking-wider uppercase shadow-md group-hover:shadow-lg group-hover:from-red-600 group-hover:to-red-500 transition-all flex items-center justify-center gap-2">
-                                        Continue Purchase <i class="pi pi-arrow-right text-[10px] md:text-xs"></i>
-                                    </span>
-                                </div>
-                            </div>
-                        </button>
-
-                        <button @click="!bloqueoExtranjero && seleccionarOrigen('extranjero', 2)"
-                            :disabled="bloqueoExtranjero" :class="[
-                                'group relative h-auto rounded-2xl bg-white border border-slate-200 shadow-lg transition-all duration-300 flex flex-col overflow-hidden',
-                                bloqueoExtranjero
-                                    ? 'opacity-60 cursor-not-allowed grayscale'
-                                    : 'hover:shadow-2xl hover:shadow-blue-900/20 hover:-translate-y-2'
-                            ]">
-
-                            <div class="h-1 w-full bg-blue-600"></div>
-
-                            <div class="p-8 flex flex-col items-center text-center h-full">
-
-                                <div
-                                    class="w-24 h-24 mb-6 relative drop-shadow-lg group-hover:scale-110 group-hover:rotate-12 transition-all duration-500">
-                                    <svg viewBox="0 0 24 24" fill="none" class="w-full h-full text-blue-600">
-                                        <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5"
-                                            fill="#eff6ff" />
-                                        <path d="M2.3 12H21.7" stroke="currentColor" stroke-width="1.5"
-                                            stroke-linecap="round" />
-                                        <path
-                                            d="M12 2.3C14.5 5 16 8.5 16 12C16 15.5 14.5 19 12 21.7C9.5 19 8 15.5 8 12C8 8.5 9.5 5 12 2.3Z"
-                                            stroke="currentColor" stroke-width="1.5" fill="#dbeafe" />
-                                    </svg>
-                                    <div class="absolute inset-0 bg-blue-500/20 blur-2xl -z-10 rounded-full"></div>
-                                </div>
-
-                                <h3
-                                    class="text-2xl font-black text-slate-800 group-hover:text-blue-700 transition-colors uppercase">
-                                    International
-                                </h3>
-                                <p class="text-sm text-slate-500 mt-2 mb-8 leading-relaxed font-medium">
-                                    Joining from abroad (Foreigner).
-                                </p>
-
-                                <div class="mt-auto w-full">
-                                    <span :class="[
-                                        'block w-full py-3 px-4 rounded-xl text-white font-bold text-sm tracking-wider uppercase shadow-md transition-all flex items-center justify-center gap-2',
-                                        bloqueoExtranjero
-                                            ? 'bg-gray-400'
-                                            : 'bg-gradient-to-r from-[#002855] to-blue-700 group-hover:from-blue-800 group-hover:to-blue-600'
-                                    ]">
-                                        {{ bloqueoExtranjero ? 'Not Available' : 'Continue Purchase' }}
-                                        <i v-if="!bloqueoExtranjero" class="pi pi-arrow-right text-xs"></i>
-                                    </span>
-                                </div>
-                            </div>
-                        </button>
-
-                    </div>
-                </div>
-
-                <div class="bg-gray-50 p-6 border-t border-slate-200 text-center">
-                    <button @click="goStart"
-                        class="group flex items-center justify-center gap-2 text-xs text-slate-400 font-bold uppercase tracking-widest hover:text-red-500 transition-colors mx-auto">
-                        <i class="pi pi-times-circle text-lg group-hover:scale-110 transition-transform"></i>
-                        Cancel Process
                     </button>
+
+                    <button @click="!bloqueoExtranjero && seleccionarOrigen('extranjero', 2)"
+                        :disabled="bloqueoExtranjero" :class="[
+                            'group relative h-auto rounded-2xl bg-white border border-slate-200 shadow-lg transition-all duration-300 flex flex-col overflow-hidden',
+                            bloqueoExtranjero
+                                ? 'opacity-60 cursor-not-allowed grayscale'
+                                : 'hover:shadow-2xl hover:shadow-blue-900/20 hover:-translate-y-2'
+                        ]">
+
+                        <div class="h-1 w-full bg-blue-600"></div>
+
+                        <div class="p-8 flex flex-col items-center text-center h-full">
+
+                            <div
+                                class="w-24 h-24 mb-6 relative drop-shadow-lg group-hover:scale-110 group-hover:rotate-12 transition-all duration-500">
+                                <svg viewBox="0 0 24 24" fill="none" class="w-full h-full text-blue-600">
+                                    <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5"
+                                        fill="#eff6ff" />
+                                    <path d="M2.3 12H21.7" stroke="currentColor" stroke-width="1.5"
+                                        stroke-linecap="round" />
+                                    <path
+                                        d="M12 2.3C14.5 5 16 8.5 16 12C16 15.5 14.5 19 12 21.7C9.5 19 8 15.5 8 12C8 8.5 9.5 5 12 2.3Z"
+                                        stroke="currentColor" stroke-width="1.5" fill="#dbeafe" />
+                                </svg>
+                                <div class="absolute inset-0 bg-blue-500/20 blur-2xl -z-10 rounded-full"></div>
+                            </div>
+
+                            <h3
+                                class="text-2xl font-black text-slate-800 group-hover:text-blue-700 transition-colors uppercase">
+                                International
+                            </h3>
+                            <p class="text-sm text-slate-500 mt-2 mb-8 leading-relaxed font-medium">
+                                Joining from abroad (Foreigner).
+                            </p>
+
+                            <div class="mt-auto w-full">
+                                <span :class="[
+                                    'block w-full py-3 px-4 rounded-xl text-white font-bold text-sm tracking-wider uppercase shadow-md transition-all flex items-center justify-center gap-2',
+                                    bloqueoExtranjero
+                                        ? 'bg-gray-400'
+                                        : 'bg-gradient-to-r from-[#002855] to-blue-700 group-hover:from-blue-800 group-hover:to-blue-600'
+                                ]">
+                                    {{ bloqueoExtranjero ? 'Not Available' : 'Continue Purchase' }}
+                                    <i v-if="!bloqueoExtranjero" class="pi pi-arrow-right text-xs"></i>
+                                </span>
+                            </div>
+                        </div>
+                    </button>
+
                 </div>
+            </div>
+
+            <div class="bg-gray-50 p-6 border-t border-slate-200 text-center">
+                <button @click="goStart"
+                    class="group flex items-center justify-center gap-2 text-xs text-slate-400 font-bold uppercase tracking-widest hover:text-red-500 transition-colors mx-auto">
+                    <i class="pi pi-times-circle text-lg group-hover:scale-110 transition-transform"></i>
+                    Cancel Process
+                </button>
+            </div>
 
         </Dialog>
 
