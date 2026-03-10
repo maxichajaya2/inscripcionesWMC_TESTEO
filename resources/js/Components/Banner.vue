@@ -12,9 +12,9 @@ import { Link } from '@inertiajs/vue3';
                     <div class="flex justify-between h-16 mx-auto w-full">
                         <!-- Logo -->
                         <div class="flex items-center shrink-0">
-                           <a href="https://wmc2026.org/" target="_blank" rel="noopener noreferrer">
-                                <img src="/images/logo-proexplo.png" alt="World Mining"
-                                    class="h-12 w-auto cursor-pointer" />
+                            <a href="https://wmc2026.org/" rel="noopener noreferrer">
+                                <!-- <ApplicationMark class="block w-auto h-9" /> -->
+                                <img src="/images/logo-wmc.png" alt="World Mining" class="h-12 w-auto cursor-pointer" />
                             </a>
                         </div>
                         <!-- Idiomas -->
