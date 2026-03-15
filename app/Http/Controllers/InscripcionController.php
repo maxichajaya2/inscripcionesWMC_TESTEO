@@ -213,138 +213,87 @@ class InscripcionController extends Controller
         }
     }
 
-    // private function handlePersona(Request $request)
-    // {
-    //     // A. Resolver Ocupación
-    //     $cargo = $request->input('cargo', '');
-    //     $ocupacion_obj = Ocupacion::whereRaw("name like '%" . $cargo . "%'")->where('isactive', true)->first();
-    //     $id_ocupacion = $ocupacion_obj ? $ocupacion_obj->id : 2795;
-
-    //     // B. Buscar o Instanciar Persona
-    //     $persona = Persona::where('id_tipo_documento', $request->input('id_tipo_documento') ?? $request->input('tipo_doc'))
-    //         ->where('documento', trim($request->input('documento')))
-    //         ->firstOrNew();
-
-    //     // C. Guardar Dirección
-    //     $direccion = ($persona->id_direccion > 0) ? Direccion::find($persona->id_direccion) : new Direccion;
-    //     $direccion->id_pais = $request->input('pais');
-    //     $direccion->id_departamento = $request->input('departamento', 0);
-    //     $direccion->id_provincia = $request->input('provincia', 0);
-    //     $direccion->id_distrito = $request->input('distrito', 0);
-    //     $direccion->direccion = trim($request->input('direccionPersona', ''));
-    //     $direccion->save();
-
-    //     // D. Guardar Datos Persona
-    //     $persona->id_direccion = $direccion->id;
-    //     $persona->nombres = trim($request->input('nombres'));
-    //     $persona->apellido_paterno = trim($request->input('apellido_paterno'));
-    //     $persona->apellido_materno = $request->input('apellido_materno', '');
-    //     $persona->correo = trim($request->input('correo'));
-    //     $persona->celular = trim($request->input('celular'));
-    //     $persona->sexo = $request->input('sexo');
-    //     $persona->id_ocupacion = $id_ocupacion;
-    //     $persona->id_nacionalidad = $request->input('nacionalidad', $request->input('pais'));
-    //     $persona->company = trim($request->input('empresa'));
-
-    //     if (!$persona->exists) {
-    //         $persona->id_tipo_documento = $request->input('id_tipo_documento') ?? $request->input('tipo_doc');
-    //         $persona->documento = trim($request->input('documento'));
-    //     }
-
-    //     if ($request->filled('fecha_nacimiento')) {
-    //         try {
-    //             $persona->fecha_nacimiento = Carbon::parse($request->input('fecha_nacimiento'))->format('Y-m-d');
-    //         } catch (\Exception $e) {
-    //             Log::error("Error parseando fecha: " . $e->getMessage());
-    //         }
-    //     }
-
-    //     $persona->save();
-
-    //     return $persona;
-    // }
+    private function parseNull($value)
+    {
+        return ($value === 'null' || $value === '' || !$value || $value == 0) ? null : (int)$value;
+    }
 
     private function handlePersona(Request $request)
     {
-        // ---------------------------------------------------------
-        // A. Resolver Ocupación
-        // ---------------------------------------------------------
+        // 1. Resolver Ocupación (Previniendo error de bigint)
         $cargo = $request->input('cargo', '');
-        $ocupacion_obj = Ocupacion::whereRaw("name like '%" . $cargo . "%'")->where('isactive', true)->first();
-        $id_ocupacion = $ocupacion_obj ? $ocupacion_obj->id : 2795;
+        $id_ocupacion_input = $request->input('id_ocupacion');
 
-        // ---------------------------------------------------------
-        // B. Buscar o Instanciar Persona (MODIFICADO PARA SEGURIDAD)
-        // ---------------------------------------------------------
+        $ocupacion_obj = null;
+        if (!empty($id_ocupacion_input)) {
+            // Si el frontend envía un ID, lo usamos (forzando casting a int)
+            $ocupacion_obj = Ocupacion::find((int)$id_ocupacion_input);
+        }
 
-        // 1. Obtenemos el documento limpio del input
+        // Si no se encontró por ID, buscamos por nombre
+        if (!$ocupacion_obj && !empty($cargo)) {
+            $ocupacion_obj = Ocupacion::where('name', 'LIKE', '%' . trim($cargo) . '%')
+                ->first();
+        }
+
+        $id_ocupacion = $ocupacion_obj ? $ocupacion_obj->id : 2795; // 2795 es el fallback
+
+        // 2. Buscar o Instanciar Persona (Usando el documento real)
         $documentoInput = trim($request->input('documento'));
         $tipoDocumentoId = $request->input('id_tipo_documento') ?? $request->input('tipo_doc');
 
-        // 2. Generamos el Hash manualmente para poder buscar
-        // Como en la BD el documento es ilegible (encriptado), buscamos por su huella digital (hash)
-        $documentoHash = hash_hmac('sha256', $documentoInput, config('app.key'));
-
-        // 3. Realizamos la búsqueda usando el Hash
-        // $persona = Persona::where('id_tipo_documento', $tipoDocumentoId)
-        //     ->where('documento_hash', $documentoHash) // <--- AQUÍ ESTÁ EL CAMBIO CLAVE
-        //     ->firstOrNew();
-
-        $persona = Persona::where('id_tipo_documento', $request->input('id_tipo_documento') ?? $request->input('tipo_doc'))
-            ->where('documento', trim($request->input('documento')))
+        // Buscamos la persona. Nota: Si usas encriptación, Eloquent se encarga del casting si el modelo está bien configurado.
+        $persona = Persona::where('id_tipo_documento', $tipoDocumentoId)
+            ->where('documento', $documentoInput)
             ->firstOrNew();
 
-        // ---------------------------------------------------------
-        // C. Guardar Dirección
-        // ---------------------------------------------------------
+        // 3. Guardar / Actualizar Dirección
         $direccion = ($persona->id_direccion > 0) ? Direccion::find($persona->id_direccion) : new Direccion;
+
         $direccion->id_pais = $request->input('pais');
-        $direccion->id_departamento = $request->input('departamento', 0);
-        $direccion->id_provincia = $request->input('provincia', 0);
-        $direccion->id_distrito = $request->input('distrito', 0);
+
+        // Validamos nulos para Postgres
+        $direccion->id_departamento = $this->parseNull($request->input('departamento'));
+        $direccion->id_provincia    = $this->parseNull($request->input('provincia'));
+        $direccion->id_distrito     = $this->parseNull($request->input('distrito'));
+
         $direccion->direccion = trim($request->input('direccionPersona', ''));
         $direccion->save();
 
-        // ---------------------------------------------------------
-        // D. Guardar Datos Persona
-        // ---------------------------------------------------------
-        $persona->id_direccion = $direccion->id;
-        $persona->nombres = trim($request->input('nombres'));
-        $persona->apellido_paterno = trim($request->input('apellido_paterno'));
-        $persona->apellido_materno = $request->input('apellido_materno', '');
-        $persona->correo = trim($request->input('correo'));
-        $persona->celular = trim($request->input('celular'));
-        $persona->sexo = $request->input('sexo');
-        $persona->id_ocupacion = $id_ocupacion;
-        $persona->id_nacionalidad = $request->input('nacionalidad', $request->input('pais'));
-        $persona->company = trim($request->input('empresa'));
+        // 4. Actualizar Datos de la Persona con lo que viene del Formulario
+        $persona->id_direccion     = $direccion->id;
+        $persona->id_ocupacion     = $id_ocupacion;
+        $persona->ocupacion = $ocupacion_obj->name ?? $cargo ?? '';
+        $persona->nombres          = trim($request->input('nombres'));
+        $persona->apellido_paterno  = trim($request->input('apellido_paterno'));
+        $persona->apellido_materno  = $request->input('apellido_materno', '');
+        $persona->correo           = trim($request->input('correo'));
+        $persona->celular          = trim($request->input('celular'));
+        $persona->sexo             = $request->input('sexo');
+        $persona->id_nacionalidad  = $request->input('nacionalidad', $request->input('pais'));
+        $persona->empresa          = trim($request->input('empresa'));
 
-        // Lógica para Nuevos Registros
+        // Si es nueva persona, asignamos los campos clave
         if (!$persona->exists) {
             $persona->id_tipo_documento = $tipoDocumentoId;
-
-            // ASIGNACIÓN DEL DOCUMENTO:
-            // Le pasamos el dato real ($documentoInput).
-            // Tu Modelo Persona.php se encargará automáticamente de:
-            // 1. Encriptarlo (gracias a protected $casts)
-            // 2. Llenar 'documento_hash' (gracias a la función booted/saving)
             $persona->documento = $documentoInput;
         }
 
-        // Lógica de Fecha de Nacimiento
+        // Fecha de nacimiento segura
         if ($request->filled('fecha_nacimiento')) {
             try {
-                // Asegúrate de tener: use Carbon\Carbon; y use Illuminate\Support\Facades\Log; arriba
-                $persona->fecha_nacimiento = \Carbon\Carbon::parse($request->input('fecha_nacimiento'))->format('Y-m-d');
+                $persona->fecha_nacimiento = Carbon::parse($request->input('fecha_nacimiento'))->format('Y-m-d');
             } catch (\Exception $e) {
-                \Illuminate\Support\Facades\Log::error("Error parseando fecha: " . $e->getMessage());
+                Log::error("Error parseando fecha en handlePersona: " . $e->getMessage());
             }
         }
+
 
         $persona->save();
 
         return $persona;
     }
+
 
     private function calculateTotal(Request $request, $categoria)
     {
@@ -605,63 +554,63 @@ class InscripcionController extends Controller
 
         $respuesta = app(\App\Http\Controllers\NiubizController::class)->authorization($cuota->respuesta_api, $facturacion->total, $transactiontoken, $order);
 
-        // $respuesta = '{
-        //     "header": {
-        //         "ecoreTransactionUUID": "3746e2a1-19bb-4251-b920-f7d2cc7c7c6e",
-        //         "ecoreTransactionDate": 1749744006879,
-        //         "millis": 958
-        //     },
-        //     "fulfillment": {
-        //         "channel": "web",
-        //         "merchantId": "456879853",
-        //         "terminalId": "00000001",
-        //         "captureType": "manual",
-        //         "countable": true,
-        //         "fastPayment": false,
-        //         "signature": "3746e2a1-19bb-4251-b920-f7d2cc7c7c6e"
-        //     },
-        //     "order": {
-        //         "tokenId": "3624210E49BA4F80A4210E49BA4F80E0",
-        //         "purchaseNumber": "8291",
-        //         "amount": 2200,
-        //         "installment": 0,
-        //         "currency": "USD",
-        //         "authorizedAmount": 2200,
-        //         "authorizationCode": "091800",
-        //         "actionCode": "000",
-        //         "traceNumber": "31645",
-        //         "transactionDate": "250612110006",
-        //         "transactionId": "993211570048581"
-        //     },
-        //     "dataMap": {
-        //         "TERMINAL": "00000001",
-        //         "BRAND_ACTION_CODE": "00",
-        //         "BRAND_HOST_DATE_TIME": "201222141839",
-        //         "TRACE_NUMBER": "31645",
-        //         "CARD_TYPE": "D",
-        //         "ECI_DESCRIPTION": "Transaccion no autenticada pero enviada en canal seguro",
-        //         "SIGNATURE": "3746e2a1-19bb-4251-b920-f7d2cc7c7c6e",
-        //         "CARD": "447411******2240",
-        //         "MERCHANT": "109705108",
-        //         "STATUS": "Authorized",
-        //         "ACTION_DESCRIPTION": "Aprobado y completado con exito",
-        //         "ID_UNICO": "993211570048581",
-        //         "AMOUNT": "1900.0",
-        //         "AUTHORIZATION_CODE": "091800",
-        //         "YAPE_ID": "",
-        //         "CURRENCY": "0604",
-        //         "TRANSACTION_DATE": "250612110006",
-        //         "ACTION_CODE": "000",
-        //         "CVV2_VALIDATION_RESULT": "M",
-        //         "ECI": "07",
-        //         "ID_RESOLUTOR": "420201222142237",
-        //         "BRAND": "visa",
-        //         "ADQUIRENTE": "570002",
-        //         "BRAND_NAME": "VI",
-        //         "PROCESS_CODE": "000000",
-        //         "TRANSACTION_ID": "993211570048581"
-        //     }
-        // }';
+        $respuesta = '{
+            "header": {
+                "ecoreTransactionUUID": "3746e2a1-19bb-4251-b920-f7d2cc7c7c6e",
+                "ecoreTransactionDate": 1749744006879,
+                "millis": 958
+            },
+            "fulfillment": {
+                "channel": "web",
+                "merchantId": "456879853",
+                "terminalId": "00000001",
+                "captureType": "manual",
+                "countable": true,
+                "fastPayment": false,
+                "signature": "3746e2a1-19bb-4251-b920-f7d2cc7c7c6e"
+            },
+            "order": {
+                "tokenId": "3624210E49BA4F80A4210E49BA4F80E0",
+                "purchaseNumber": "8291",
+                "amount": 2200,
+                "installment": 0,
+                "currency": "USD",
+                "authorizedAmount": 2200,
+                "authorizationCode": "091800",
+                "actionCode": "000",
+                "traceNumber": "31645",
+                "transactionDate": "250612110006",
+                "transactionId": "993211570048581"
+            },
+            "dataMap": {
+                "TERMINAL": "00000001",
+                "BRAND_ACTION_CODE": "00",
+                "BRAND_HOST_DATE_TIME": "201222141839",
+                "TRACE_NUMBER": "31645",
+                "CARD_TYPE": "D",
+                "ECI_DESCRIPTION": "Transaccion no autenticada pero enviada en canal seguro",
+                "SIGNATURE": "3746e2a1-19bb-4251-b920-f7d2cc7c7c6e",
+                "CARD": "447411******2240",
+                "MERCHANT": "109705108",
+                "STATUS": "Authorized",
+                "ACTION_DESCRIPTION": "Aprobado y completado con exito",
+                "ID_UNICO": "993211570048581",
+                "AMOUNT": "1900.0",
+                "AUTHORIZATION_CODE": "091800",
+                "YAPE_ID": "",
+                "CURRENCY": "0604",
+                "TRANSACTION_DATE": "250612110006",
+                "ACTION_CODE": "000",
+                "CVV2_VALIDATION_RESULT": "M",
+                "ECI": "07",
+                "ID_RESOLUTOR": "420201222142237",
+                "BRAND": "visa",
+                "ADQUIRENTE": "570002",
+                "BRAND_NAME": "VI",
+                "PROCESS_CODE": "000000",
+                "TRANSACTION_ID": "993211570048581"
+            }
+        }';
 
         $filtered_response = app(\App\Http\Controllers\NiubizController::class)->filterResponse($respuesta);
 

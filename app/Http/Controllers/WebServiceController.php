@@ -358,7 +358,7 @@ class WebServiceController extends Controller
             // $url = "https://secure2.iimp.org:8443/KBServiciosPruebaIIMPJavaEnvironment/rest/servicioinscripcionwmc";
 
             /** ******* PRODUCCION *********/
-            $url ="https://secure2.iimp.org:8443/KBServiciosIIMPJavaEnvironment/rest/servicioinscripcionwmc";
+            $url = "https://secure2.iimp.org:8443/KBServiciosIIMPJavaEnvironment/rest/servicioinscripcionwmc";
 
             $clean = function ($str) {
                 $unwanted = array('Š' => 'S', 'š' => 's', 'Ž' => 'Z', 'ž' => 'z', 'À' => 'A', 'Á' => 'A', 'Â' => 'A', 'Ã' => 'A', 'Ä' => 'A', 'Å' => 'A', 'Æ' => 'A', 'Ç' => 'C', 'È' => 'E', 'É' => 'E', 'Ê' => 'E', 'Ë' => 'E', 'Ì' => 'I', 'Í' => 'I', 'Î' => 'I', 'Ï' => 'I', 'Ñ' => 'N', 'Ò' => 'O', 'Ó' => 'O', 'Ô' => 'O', 'Õ' => 'O', 'Ö' => 'O', 'Ø' => 'O', 'Ù' => 'U', 'Ú' => 'U', 'Û' => 'U', 'Ü' => 'U', 'Ý' => 'Y', 'Þ' => 'B', 'ß' => 'Ss', 'à' => 'a', 'á' => 'a', 'â' => 'a', 'ã' => 'a', 'ä' => 'a', 'å' => 'a', 'æ' => 'a', 'ç' => 'c', 'è' => 'e', 'é' => 'e', 'ê' => 'e', 'ë' => 'e', 'ì' => 'i', 'í' => 'i', 'î' => 'i', 'ï' => 'i', 'ð' => 'o', 'ñ' => 'n', 'ò' => 'o', 'ó' => 'o', 'ô' => 'o', 'õ' => 'o', 'ö' => 'o', 'ø' => 'o', 'ù' => 'u', 'ú' => 'u', 'û' => 'u', 'ü' => 'u', 'ý' => 'y', 'þ' => 'b', 'ÿ' => 'y');
@@ -466,13 +466,16 @@ class WebServiceController extends Controller
                 "ApellidoPaterno"   => substr(strtoupper($clean($persona->apellido_paterno)), 0, 30),
                 "ApellidoMaterno"   => substr(strtoupper($clean($persona->apellido_materno ?? " ")), 0, 30),
                 "FechaNacimiento"   => (string)$persona->fecha_nacimiento,
+                "Sexo"              => (string)$persona->sexo ?? "",
+                "IdEmpresa"            => (int)$persona->id_empresa ?? null,
                 "Empresa"           => (string)$persona->company ?? "",
-                "Cargo"             => '',
+                "IdCargo"            => (int)$persona->id_ocupacion ?? null,
+                "Cargo"             => (string)$persona->ocupacion ?? "",
                 "Pais"              => (int)($persona->direccion->id_pais ?? 75),
                 "Departamento"      => (int)($persona->direccion->id_departamento ?? 0),
                 "Provincia"         => (int)($persona->direccion->id_provincia ?? 0),
                 "Distrito"          => (int)($persona->direccion->id_distrito ?? 0),
-                "Direccion"         => substr(strtoupper($clean($persona->direccion->direccion ?? "LURIN")), 0, 100),
+                "Direccion"         => substr(strtoupper($clean($persona->direccion->direccion ?? "")), 0, 100),
                 "Telefono"          => substr($persona->celular ?? "999999999", 0, 20),
                 "Email"             => (string)$persona->correo,
                 "Tarifas"           => $tarifas_ws,
@@ -494,6 +497,7 @@ class WebServiceController extends Controller
                 "CodigoOperacion"   => (string)$niubiz->idtransaccion,
                 "TipoFicha"         => 2
             ];
+
 
             \Illuminate\Support\Facades\Log::info("JSON WMC SEND FINAL:", $data_ws);
 

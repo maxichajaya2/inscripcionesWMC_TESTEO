@@ -114,6 +114,100 @@ const missingFields = computed(() => {
     return Object.keys(errors.value).map(key => fieldNames[key] || key);
 });
 
+// const searchPerson = async () => {
+//     if (!tipo_doc.value || !documento.value) {
+//         toast.add({ severity: 'warn', summary: 'Warning', detail: 'Please enter document type and number', life: 3000 });
+//         return;
+//     }
+
+//     loadingSearch.value = true;
+//     hasSearched.value = false;
+//     noEncontrado.value = false;
+//     esSocio.value =  false;
+
+//     try {
+//         const response = await axios.post('/api/getperson', {
+//             id_tipo_documento: tipo_doc.value,
+//             numero_documento: documento.value
+//         });
+
+//         const data = response.data;
+//         hasSearched.value = true;
+//         esSocio.value = p.es_socio;
+
+//         if (data.status && data.persona) {
+//             const p = data.persona;
+//             noEncontrado.value = false;
+//             const paisAsignado = props.tipo_origen === 1 ? 75 : (p.pais || p.id_pais);
+//             if (p.pais || p.id_pais) {
+//                 pais.value = p.pais || p.id_pais;
+//                 await loadDepartamentos();
+//             }
+
+//             esSocio.value = p.es_socio;
+
+
+
+//             setValues({
+//                 tipo_doc: p.id_tipo_documento,
+//                 documento: p.documento,
+//                 nombres: p.nombres || '',
+//                 apellido_paterno: p.apellido_paterno || '',
+//                 correo: p.correo || '',
+//                 celular: p.celular || '',
+//                 direccionPersona: p.direccionPersona || p.direccion?.direccion || '',
+//                 empresa: p.empresa_nombre || p.empresa || '',
+//                 pais: p.pais || p.id_pais || paisAsignado,
+//                 sexo: p.sexo || '',
+//                 fecha_nacimiento: p.fecha_nacimiento ? new Date(p.fecha_nacimiento) : null
+//             });
+
+//                if (props.autores && props.autores.length > 0) {
+//                 const existeEnAutores = props.autores.some(a =>
+//                     a.autor_correo.toLowerCase().trim() === p.correo?.toLowerCase().trim()
+//                 );
+
+
+//                 if (!existeEnAutores) {
+//                     mensajeErrorAutor.value = "The email associated with this ID (" + p.correo + ") is not registered in the Authors list.";
+//                     correoEsValidoAutor.value = false;
+//                     loadingSearch.value = false;
+//                     return; // Bloqueamos el flujo
+//                 }
+//             }
+
+//             // Si pasa la validación, procedemos
+//             hasSearched.value = true;
+//             correoEsValidoAutor.value = true;
+
+//             toast.add({ severity: 'success', summary: 'Found', detail: 'Information loaded successfully', life: 3000 });
+//         } else {
+//             noEncontrado.value = true;
+//             // SI ES EXTRANJERO, permitimos que pase el check de socio aunque no se encuentre
+//             esSocio.value = props.tipo_origen === 2 ? true : false;
+
+//             setValues({
+//                 tipo_doc: tipo_doc.value,
+//                 documento: documento.value,
+//                 nombres: '',
+//                 apellido_paterno: '',
+//                 correo: '',
+//                 celular: '',
+//                 direccionPersona: '',
+//                 empresa: '',
+//                 sexo: '',
+//                 fecha_nacimiento: null
+//             });
+
+//             toast.add({ severity: 'info', summary: 'Not Found', detail: 'No record found. Please fill manually.', life: 3000 });
+//         }
+//     } catch (error) {
+//         console.error("Search error:", error);
+//     } finally {
+//         loadingSearch.value = false;
+//     }
+// };
+
 const searchPerson = async () => {
     if (!tipo_doc.value || !documento.value) {
         toast.add({ severity: 'warn', summary: 'Warning', detail: 'Please enter document type and number', life: 3000 });
@@ -121,8 +215,11 @@ const searchPerson = async () => {
     }
 
     loadingSearch.value = true;
+
+    // 1. IMPORTANTE: Reseteamos estados para que no se vean banners viejos
     hasSearched.value = false;
     noEncontrado.value = false;
+    esSocio.value = false;
 
     try {
         const response = await axios.post('/api/getperson', {
@@ -131,20 +228,21 @@ const searchPerson = async () => {
         });
 
         const data = response.data;
-        hasSearched.value = true;
 
         if (data.status && data.persona) {
+            // 2. Definimos 'p' PRIMERO
             const p = data.persona;
+
+            // 3. Ahora sí podemos usar 'p'
+            esSocio.value = p.es_socio;
             noEncontrado.value = false;
+
             const paisAsignado = props.tipo_origen === 1 ? 75 : (p.pais || p.id_pais);
+
             if (p.pais || p.id_pais) {
                 pais.value = p.pais || p.id_pais;
                 await loadDepartamentos();
             }
-
-            esSocio.value = p.es_socio;
-
-
 
             setValues({
                 tipo_doc: p.id_tipo_documento,
@@ -160,7 +258,7 @@ const searchPerson = async () => {
                 fecha_nacimiento: p.fecha_nacimiento ? new Date(p.fecha_nacimiento) : null
             });
 
-               if (props.autores && props.autores.length > 0) {
+            if (props.autores && props.autores.length > 0) {
                 const existeEnAutores = props.autores.some(a =>
                     a.autor_correo.toLowerCase().trim() === p.correo?.toLowerCase().trim()
                 );
@@ -169,19 +267,21 @@ const searchPerson = async () => {
                     mensajeErrorAutor.value = "The email associated with this ID (" + p.correo + ") is not registered in the Authors list.";
                     correoEsValidoAutor.value = false;
                     loadingSearch.value = false;
-                    return; // Bloqueamos el flujo
+                    hasSearched.value = true; // Mostramos error de autor
+                    return;
                 }
             }
 
-            // Si pasa la validación, procedemos
-            hasSearched.value = true;
+            // 4. RECIÉN AQUÍ activamos el éxito para que los banners se actualicen de una sola vez
             correoEsValidoAutor.value = true;
+            hasSearched.value = true;
 
             toast.add({ severity: 'success', summary: 'Found', detail: 'Information loaded successfully', life: 3000 });
+
         } else {
+            // Lógica para cuando NO se encuentra la persona
             noEncontrado.value = true;
-            // SI ES EXTRANJERO, permitimos que pase el check de socio aunque no se encuentre
-            esSocio.value = props.tipo_origen === 2 ? true : false;
+            esSocio.value = props.tipo_origen === 2; // true si es extranjero
 
             setValues({
                 tipo_doc: tipo_doc.value,
@@ -196,15 +296,16 @@ const searchPerson = async () => {
                 fecha_nacimiento: null
             });
 
+            hasSearched.value = true; // Mostramos banner de "No encontrado"
             toast.add({ severity: 'info', summary: 'Not Found', detail: 'No record found. Please fill manually.', life: 3000 });
         }
     } catch (error) {
         console.error("Search error:", error);
+        hasSearched.value = false;
     } finally {
         loadingSearch.value = false;
     }
 };
-
 
 const onlyNumberKey = (event) => {
     const charCode = event.which ? event.which : event.keyCode;
@@ -261,9 +362,6 @@ const mostrarBannerBloqueo = computed(() => {
     // De lo contrario, sigue las reglas normales de bloqueo
     return camposBloqueados.value;
 });
-// const camposBloqueados = computed(() => {
-//     return esPeruano.value && !hasSearched.value;
-// });
 
 const camposBloqueados = computed(() => {
     // 1. Condición de búsqueda (Solo para peruanos que no han buscado aún)

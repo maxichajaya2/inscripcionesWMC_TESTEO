@@ -157,7 +157,9 @@ function changeCategory(id, precioRecibido) {
     });
 }
 
-
+const esRuc20 = computed(() => {
+    return tipoDocumentoEmpresa.value === 2 && documentoEmpresa.value?.startsWith('20');
+});
 
 const getInscripcion = async () => {
     const result = await validate();
@@ -185,6 +187,18 @@ const getInscripcion = async () => {
     };
 };
 
+const camposFacturacionBloqueados = computed(() => {
+    // Si es RUC 20, bloqueamos siempre (a menos que no se haya buscado nada aún)
+    // Si NO es RUC 20 (ej. RUC 10 o DNI), dependemos de isEditingBilling
+    if (esRuc20.value) {
+        return !isEditingBilling.value || !showManualAlert.value;
+    }
+
+    // Para RUC 10 o DNI, seguimos tu lógica normal
+    return !isEditingBilling.value;
+});
+
+
 onMounted(() => {
     // Configuraciones iniciales
     tipoDocumentoEmpresa.value = 1;
@@ -192,11 +206,11 @@ onMounted(() => {
     selectTipoPago.value = 3;
 
     // 1. Si los datos ya están presentes al montar, llenar facturación
-    if (props.data_persona?.persona) {
-        fillBillingData(props.data_persona.persona);
-        es_socio.value = props.data_persona.persona.es_socio;
-        loadDepartamentos();
-    }
+    // if (props.data_persona?.persona) {
+    //     fillBillingData(props.data_persona.persona);
+    //     es_socio.value = props.data_persona.persona.es_socio;
+    //     loadDepartamentos();
+    // }
 
     // 2. Lógica de URL y categorías
     const urlParams = new URLSearchParams(window.location.search);
@@ -222,11 +236,6 @@ onMounted(() => {
 
 });
 
-watch(() => props.data_persona, (newVal) => {
-    if (newVal && newVal.persona) {
-        fillBillingData(newVal.persona);
-    }
-}, { immediate: true, deep: true });
 
 // Busca este watcher en tu código y modifícalo así:
 watch(selected_categoria, (newId) => {
@@ -362,8 +371,19 @@ const getEmpresaData = async () => {
             // Mostrar Alerta de Éxito
             showSuccessAlert.value = true;
 
-            block_direction.value = false;
-            isEditingBilling.value = true;
+
+            if (esRuc20.value) {
+                isEditingBilling.value = false; // Bloquea edición manual para RUC 20
+                block_direction.value = true;   // Refuerza bloqueo de dirección
+            } else {
+                isEditingBilling.value = true;  // Permite editar si es RUC 10 o DNI
+                block_direction.value = false;
+            }
+
+
+
+            // block_direction.value = false;
+            // isEditingBilling.value = true;
             // Actualizar vee-validate
             setValues({
                 ...values,
@@ -489,6 +509,37 @@ watch(() => props.data_persona, (newVal) => {
         fillBillingData(data);
     }
 }, { immediate: true, deep: true });
+
+
+watch(() => props.data_persona, (newVal) => {
+
+    const docTipo = newVal.id_tipo_documento || newVal.tipo_doc;
+
+    // console.log('doc', docTipo)
+
+    console.log(newVal);
+
+    if (newVal) {
+
+        // console.log('llego hasta aqui')
+        if (docTipo && docTipo !== 1 && docTipo !== 2) {
+
+            // console.log("Extranjero detectado: Autocompletando...");
+            fillBillingData(newVal.persona);
+        } else {
+
+            setValues({
+                ...values,
+                documentoEmpresa: '',
+                razonSocial: '',
+                direccionEmpresa: '',
+                responsable: '',
+                correo_facturador: ''
+            });
+        }
+    }
+}, { immediate: true, deep: true });
+
 
 
 const filteredDocTypes = computed(() => {
@@ -832,7 +883,7 @@ defineExpose({ getInscripcion });
                     </div>
 
                     <div class="flex justify-center md:justify-end px-6 mb-6">
-                        <Button v-if="!isEditingBilling" icon="pi pi-exclamation-circle"
+                        <!-- <Button v-if="!isEditingBilling" icon="pi pi-exclamation-circle"
                             label="The information is incorrect? Click here to modify"
                             class="p-button-raised p-button-warning font-bold p-4 shadow-md w-full md:w-auto"
                             style="background-color: #f59e0b; border-color: #d97706; color: #ffffff;"
@@ -840,15 +891,14 @@ defineExpose({ getInscripcion });
                         <Button v-else icon="pi pi-check-circle" label="I'm done editing, save changes"
                             class="p-button-raised p-button-success font-bold p-4 shadow-md w-full md:w-auto"
                             style="background-color: #10b981; border-color: #059669; color: #ffffff;"
-                            @click="isEditingBilling = false" />
+                            @click="isEditingBilling = false" /> -->
                     </div>
                     <div class="grid gap-6 m-6 md:grid-cols-2">
                         <div class="grid gap-6 md:grid-cols-2">
                             <div class="col-span-3 sm:col-span-1">
                                 <label class="block mb-1">Document Type <span class="text-red-600">*</span></label>
                                 <Select v-model="tipoDocumentoEmpresa" :options="filteredDocTypes" optionLabel="name_en"
-                                    optionValue="id" :disabled="!isEditingBilling" class="w-full border-green-iimp"
-                                    @change="setTipoDocPago" />
+                                    optionValue="id" class="w-full border-green-iimp" @change="setTipoDocPago" />
                                 <small class="text-red-600" v-if="errors.tipoDocumentoEmpresa">{{
                                     errors.tipoDocumentoEmpresa }}</small>
                             </div>
@@ -856,11 +906,10 @@ defineExpose({ getInscripcion });
                             <div class="col-span-3 sm:col-span-1">
                                 <label class="block mb-1">Document Number <span class="text-red-600">*</span></label>
                                 <InputGroup>
-                                    <InputText v-model="documentoEmpresa" :readonly="!isEditingBilling"
-                                        class="border-green-iimp" @keypress="onlyAlphanumericKey" @paste="onlyNumberKey"
-                                        :maxlength="12" :disabled="!isEditingBilling" />
+                                    <InputText v-model="documentoEmpresa" class="border-green-iimp"
+                                        @keypress="onlyAlphanumericKey" @paste="onlyNumberKey" :maxlength="12" />
                                     <Button icon="pi pi-search" class="bg-green-iimp" @click="getEmpresaData"
-                                        :loading="loading_doc" :disabled="!isEditingBilling || !documentoEmpresa" />
+                                        :loading="loading_doc" :disabled="!documentoEmpresa" />
                                 </InputGroup>
                                 <small v-if="dniMessageEmpresa" class="text-orange-600 font-bold block mt-1">
                                     <i class="pi pi-info-circle mr-1"></i> {{ dniMessageEmpresa }}
@@ -880,8 +929,7 @@ defineExpose({ getInscripcion });
                             <label class="block mb-1">Business Name / Full Name <span
                                     class="text-red-600">*</span></label>
                             <InputText v-model="razonSocial" class="w-full border-green-iimp"
-                                :disabled="!isEditingBilling || loading_doc"
-                                :readonly="!isEditingBilling || block_direction" />
+                                :disabled="esRuc20 || loading_doc" />
                             <small class="text-red-600" v-if="errors.razonSocial">{{ errors.razonSocial }}</small>
                         </div>
                     </div>
@@ -890,26 +938,25 @@ defineExpose({ getInscripcion });
                         <div class="w-full sm:col-span-1">
                             <label class="block mb-1">Address <span class="text-red-600">*</span></label>
                             <InputText v-model="direccionEmpresa" class="w-full border-green-iimp"
-                                :readonly="!isEditingBilling || block_direction"
-                                :disabled="!isEditingBilling || loading_doc" />
+                                :disabled="esRuc20 || loading_doc" />
                             <small class="text-red-600" v-if="errors.direccionEmpresa">{{ errors.direccionEmpresa
-                            }}</small>
+                                }}</small>
                         </div>
 
                         <div class="grid gap-6 md:grid-cols-2">
                             <div class="w-full sm:col-span-1">
                                 <label class="block mb-1">Billing Contact <span class="text-red-600">*</span></label>
-                                <InputText v-model="responsable" :readonly="!isEditingBilling"
-                                    class="w-full border-green-iimp" :disabled="!isEditingBilling || loading_doc" />
+                                <InputText v-model="responsable" class="w-full border-green-iimp"
+                                    :disabled="loading_doc" />
                                 <small class="text-red-600" v-if="errors.responsable">{{ errors.responsable }}</small>
                             </div>
 
                             <div class="w-full sm:col-span-1">
                                 <label class="block mb-1">Billing Email <span class="text-red-600">*</span></label>
-                                <InputText v-model="correo_facturador" :readonly="!isEditingBilling"
-                                    class="w-full border-green-iimp" :disabled="!isEditingBilling || loading_doc" />
+                                <InputText v-model="correo_facturador" class="w-full border-green-iimp"
+                                    :disabled="loading_doc" />
                                 <small class="text-red-600" v-if="errors.correo_facturador">{{ errors.correo_facturador
-                                }}</small>
+                                    }}</small>
                             </div>
                         </div>
                     </div>

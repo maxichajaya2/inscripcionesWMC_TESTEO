@@ -13,6 +13,9 @@ use App\Models\Distrito;
 use App\Http\Controllers\WebServiceController;
 use Carbon\Carbon;
 use stdClass;
+use App\Models\Direccion;
+use App\Models\Ocupacion;
+
 
 class DocumentApiController extends Controller
 {
@@ -63,177 +66,144 @@ class DocumentApiController extends Controller
         return $response;
     }
 
-    public function getPersonData(Request $request)
+     public function getPersonData(Request $request)
     {
-
         if (!str_contains($request->headers->get('referer'), 'registro') || (csrf_token() === null)) {
             abort(403, 'Unauthorized POST request.');
-            exit;
         }
 
-        /***  1. Validamos que se encuentre registrado ***/
-        $tipo_documento = TipoDocumento::find($request->id_tipo_documento);
-        $persona = Persona::where('id_tipo_documento', $request->id_tipo_documento)
-            ->where('documento', $request->numero_documento)
-            ->first();
+        $persona = null;
+        $id_tipo_doc = $request->id_tipo_documento;
+        $num_doc = $request->numero_documento;
         $status = true;
 
-        // dd($persona);
+        $wsController = app(\App\Http\Controllers\WebServiceController::class);
+        /** ******* LOCAL *********/
+        // $urlIIMP = "https://secure2.iimp.org:8443/KBServiciosPruebaIIMPJavaEnvironment/rest/WSViewPersona";
 
-        if ($persona) {
-            $persona->pais = $persona->direccion->id_pais;
-            $persona->departamento  = $persona->direccion->id_departamento;
-            $persona->provincia  = $persona->direccion->id_provincia;
-            $persona->distrito  = $persona->direccion->id_distrito;
-            $persona->nacionalidad  = $persona->id_nacionalidad;
-            $persona->direccionPersona  = $persona->direccion->direccion;
-            $persona->cargo = $persona->ocupacion->name;
-            $persona->ocupacion = $persona->ocupacion->name;
-        } else {
-            $persona = new \stdClass();
-            $persona->id_tipo_documento = $request->id_tipo_documento;
-            $persona->documento = $request->numero_documento;
-            $persona->pais = 0;
-            $persona->departamento  = 0;
-            $persona->provincia  = 0;
-            $persona->distrito  = 0;
-            $persona->nacionalidad  = 0;
-            $persona->direccionPersona  = "";
-            $persona->cargo = "";
-            $persona->ocupacion = "";
-            $persona->celular = "";
-            $persona->correo = "";
-            $persona->sexo = 0;
-            $persona->nombres = "";
-            $persona->apellido_paterno = "";
-            $persona->apellido_materno = "";
-            $persona->fecha_nacimiento = $this->now;
-        }
+         /** ******* PRODUCCION *********/
+        $urlIIMP = "https://secure2.iimp.org:8443/KBServiciosIIMPJavaEnvironment/rest/WSViewPersona";
 
-        if ($request->id_tipo_documento == 1) {
+        $resIIMP = $wsController->sendWS($urlIIMP, json_encode([
+            "id_tipo_documento" => (string)$id_tipo_doc,
+            "documento" => (string)$num_doc
+        ]));
 
-            // $api_persona = $this->getData('dni', $request->numero_documento);
+        $dataIIMP = (isset($resIIMP->info_persona) && $resIIMP->info_persona->code == "00") ? $resIIMP->info_persona : null;
+
+        if ($dataIIMP) {
+            // 1. Buscar o instanciar Persona local
+            $persona = Persona::where('id_tipo_documento', $id_tipo_doc)
+                ->where('documento', $num_doc)
+                ->firstOrNew();
+
+            // 2. Manejo de Dirección
+            $direccion = ($persona->id_direccion > 0)
+                ? Direccion::find($persona->id_direccion)
+                : new Direccion;
+
+            $direccion->id_pais = (int)($dataIIMP->pais ?? 75);
+            $direccion->id_departamento = ($dataIIMP->departamento > 0) ? (int)$dataIIMP->departamento : null;
+            $direccion->id_provincia = ($dataIIMP->provincia > 0) ? (int)$dataIIMP->provincia : null;
+            $direccion->id_distrito = ($dataIIMP->distrito > 0) ? (int)$dataIIMP->distrito : null;
+            $direccion->direccion = $dataIIMP->direccion ?? 'LURIN';
+            $direccion->save();
+
+            // --- MANEJO DE OCUPACIÓN SEGURO ---
+            $ocupacion = null;
+
+            if (!empty($dataIIMP->id_ocupacion)) {
+                // 1. Intentamos buscar la ocupación por ID
+                $ocupacion = Ocupacion::find((int)$dataIIMP->id_ocupacion);
+
+                if ($ocupacion) {
+                    // 2. Si existe, SOLO actualizamos el nombre si la API NO viene vacía
+                    if (!empty(trim($dataIIMP->ocupacion))) {
+                        $ocupacion->name = trim(strtoupper($dataIIMP->ocupacion));
+                        $ocupacion->save();
+                    }
+                } else {
+                    // 3. Si NO existe, la creamos (aquí sí usamos el nombre que venga o un default)
+                    $ocupacion = Ocupacion::create([
+                        'id'          => (int)$dataIIMP->id_ocupacion,
+                        'name'        => !empty(trim($dataIIMP->ocupacion)) ? trim(strtoupper($dataIIMP->ocupacion)) : 'OCUPACIÓN DESCONOCIDA',
+                        'descripcion' => 'Creado automáticamente desde API IIMP',
+                        'isactive'    => true,
+                    ]);
+                }
+            }
+
+            // 4. Manejo de Empresa (Solo consulta por sie_code)
+            $empresaLocal = null;
+            if (!empty($dataIIMP->id_empresa)) {
+                $empresaLocal = Empresa::where('sie_code', (string)$dataIIMP->id_empresa)->first();
+            }
+
+
+            // dd($empresaLocal);
+
+            // 5. Asignación de datos a la Persona
+            if (!$persona->exists) {
+                $persona->id_tipo_documento = $id_tipo_doc;
+                $persona->documento = $num_doc;
+            }
+
+            $persona->id_direccion = $direccion->id;
+            $persona->id_ocupacion = $ocupacion ? $ocupacion->id : null;
+
+            if ($empresaLocal) {
+                $persona->id_empresa = $empresaLocal->id;
+                $persona->empresa   = $empresaLocal->nombre; // Usamos nombre de BD local
+            } else {
+                $persona->id_empresa = null;
+                $persona->empresa    = $dataIIMP->empresa ?? null; // Usamos texto de la API
+            }
+
+            $persona->nombres           = $dataIIMP->nombres;
+            $persona->apellido_paterno  = $dataIIMP->apellido_paterno;
+            $persona->apellido_materno  = $dataIIMP->apellido_materno;
+            $persona->correo            = $dataIIMP->correo ?? $persona->correo;
+            $persona->celular           = $dataIIMP->celular ?? $persona->celular;
+            $persona->sexo              = $dataIIMP->sexo ?? $persona->sexo;
+            $persona->fecha_nacimiento  = $dataIIMP->fecha_nacimiento ?? $persona->fecha_nacimiento;
+            $persona->es_socio          = $dataIIMP->asociado ?? false;
+            $persona->sie_code          = $dataIIMP->sie_code ?? $persona->sie_code;
+
+            $persona->save();
+
+            // 6. Preparar para el FRONT (Aplanado)
+            $persona->direccionPersona = $direccion->direccion;
+            $persona->cargo            = $ocupacion ? $ocupacion->name : ($dataIIMP->ocupacion ?? "");
+            $persona->nombre_empresa   = $empresaLocal ? $empresaLocal->razon_social : ($dataIIMP->empresa ?? "");
+            $persona->pais             = $direccion->id_pais;
+            $persona->departamento     = $direccion->id_departamento ?? 0;
+            $persona->provincia        = $direccion->id_provincia ?? 0;
+            $persona->distrito         = $direccion->id_distrito ?? 0;
+        } elseif ($id_tipo_doc == 1) {
+            // FALLBACK RENIEC
             $fakeRequest = new \Illuminate\Http\Request();
-            $fakeRequest->merge(['tipo_doc' => 1, 'documento' => $request->numero_documento]);
-            $api_persona = $this->getData($fakeRequest);
+            $fakeRequest->merge(['tipo_doc' => 1, 'documento' => $num_doc]);
+            $api_reniec = $this->getData($fakeRequest);
 
-            if ($api_persona['status']) {
-                $persona->nombres = $api_persona['persona']->nombres;
-                $persona->apellido_paterno = $api_persona['persona']->apellidoPaterno;
-                $persona->apellido_materno = $api_persona['persona']->apellidoMaterno;
+            if ($api_reniec['status']) {
+                $persona = new \stdClass();
+                $persona->nombres          = $api_reniec['persona']->nombres;
+                $persona->apellido_paterno = $api_reniec['persona']->apellidoPaterno;
+                $persona->apellido_materno = $api_reniec['persona']->apellidoMaterno;
+                $persona->documento        = $num_doc;
+                $persona->id_tipo_documento = 1;
+                $persona->es_socio         = false;
             } else {
                 $status = false;
             }
         }
 
+        if (!$persona) {
+            return response()->json(['status' => false, 'message' => 'No encontrado']);
+        }
 
-        $persona->es_socio = app(\App\Http\Controllers\WebServiceController::class)
-            ->validatePersonMember($request->id_tipo_documento, $request->numero_documento);
-
-        // $persona->es_socio =true;
-
-        return json_encode(['persona' => $persona, 'status' => $status]);
+        return response()->json(['persona' => $persona, 'status' => $status]);
     }
-
-    // public function getPersonData(Request $request)
-    // {
-    //     // 1. Validación de Seguridad
-    //     if (!str_contains($request->headers->get('referer'), 'registro') || (csrf_token() === null)) {
-    //         abort(403, 'Unauthorized POST request.');
-    //         exit;
-    //     }
-
-    //     // ---------------------------------------------------------
-    //     // CORRECCIÓN: BÚSQUEDA POR HASH (BLIND INDEX)
-    //     // ---------------------------------------------------------
-
-    //     // A. Generamos el Hash del documento que ingresó el usuario
-    //     // Usamos la misma 'app.key' que usamos para guardar en la BD.
-    //     $docHash = hash_hmac('sha256', $request->numero_documento, config('app.key'));
-
-    //     // B. Buscamos usando la columna HASH
-    //     $persona = Persona::where('id_tipo_documento', $request->id_tipo_documento)
-    //         ->where('documento_hash', $docHash) // <--- AQUÍ ESTÁ EL CAMBIO CLAVE
-    //         ->first();
-
-    //     $status = true;
-
-    //     if ($persona) {
-    //         // SI ENCONTRAMOS (BÚSQUEDA LOCAL):
-    //         // Llenamos los datos desde nuestra BD.
-    //         // Nota: Al acceder a $persona->direccion, Laravel desencripta solo si es necesario.
-    //         $persona->pais = $persona->direccion->id_pais ?? 0;
-    //         $persona->departamento  = $persona->direccion->id_departamento ?? 0;
-    //         $persona->provincia  = $persona->direccion->id_provincia ?? 0;
-    //         $persona->distrito  = $persona->direccion->id_distrito ?? 0;
-    //         $persona->nacionalidad  = $persona->id_nacionalidad ?? 0;
-    //         $persona->direccionPersona  = $persona->direccion->direccion ?? '';
-    //         $persona->cargo = $persona->ocupacion->name ?? '';
-    //         $persona->ocupacion = $persona->ocupacion->name ?? '';
-    //     } else {
-    //         // SI NO ENCONTRAMOS (NUEVO REGISTRO):
-    //         // Creamos el objeto vacío para llenarlo
-    //         $persona = new \stdClass();
-    //         $persona->id_tipo_documento = $request->id_tipo_documento;
-    //         $persona->documento = $request->numero_documento; // Pasamos el dato real para el form
-    //         $persona->pais = 0;
-    //         $persona->departamento  = 0;
-    //         $persona->provincia  = 0;
-    //         $persona->distrito  = 0;
-    //         $persona->nacionalidad  = 0;
-    //         $persona->direccionPersona  = "";
-    //         $persona->cargo = "";
-    //         $persona->ocupacion = "";
-    //         $persona->celular = "";
-    //         $persona->correo = "";
-    //         $persona->sexo = 0;
-    //         $persona->nombres = "";
-    //         $persona->apellido_paterno = "";
-    //         $persona->apellido_materno = "";
-    //         $persona->fecha_nacimiento = $this->now;
-    //     }
-
-    //     // ---------------------------------------------------------
-    //     // CONSULTA A RENIEC / API EXTERNA (SI ES DNI)
-    //     // ---------------------------------------------------------
-    //     if ($request->id_tipo_documento == 1) {
-    //         try {
-    //             $fakeRequest = new \Illuminate\Http\Request();
-    //             $fakeRequest->merge(['tipo_doc' => 1, 'documento' => $request->numero_documento]);
-
-    //             // Usamos un Try-Catch interno en getData si es posible, o aquí mismo
-    //             $api_persona = $this->getData($fakeRequest);
-
-    //             if (isset($api_persona['status']) && $api_persona['status']) {
-    //                 // Si la API externa responde, llenamos los datos
-    //                 // Usamos null coalescing (??) para evitar errores si falta algún campo
-    //                 $persona->nombres = $api_persona['persona']->nombres ?? $persona->nombres;
-    //                 $persona->apellido_paterno = $api_persona['persona']->apellidoPaterno ?? $persona->apellido_paterno;
-    //                 $persona->apellido_materno = $api_persona['persona']->apellidoMaterno ?? $persona->apellido_materno;
-    //             } else {
-    //                 // Si la API dice false, no marcamos error general, dejamos que el usuario llene manual
-    //                 // $status = false; // COMENTADO: Mejor dejar status true para que el usuario pueda escribir
-    //             }
-    //         } catch (\Exception $e) {
-    //             // Si la API falla (Timeout), ignoramos y dejamos que el usuario llene manual
-    //             \Illuminate\Support\Facades\Log::error("Error API DNI: " . $e->getMessage());
-    //         }
-    //     }
-
-    //     // ---------------------------------------------------------
-    //     // VALIDACIÓN DE SOCIO (WEBSERVICE)
-    //     // ---------------------------------------------------------
-    //     try {
-    //         // Envolvemos en Try-Catch para evitar el error "cURL error 28" (Timeout)
-    //         $persona->es_socio = app(\App\Http\Controllers\WebServiceController::class)
-    //             ->validatePersonMember($request->id_tipo_documento, $request->numero_documento);
-    //     } catch (\Exception $e) {
-    //         \Illuminate\Support\Facades\Log::error("Error Validando Socio: " . $e->getMessage());
-    //         $persona->es_socio = false; // Asumimos false si falla la conexión
-    //     }
-
-    //     return json_encode(['persona' => $persona, 'status' => $status]);
-    // }
 
     public function getEmpresaData(Request $request)
     {
