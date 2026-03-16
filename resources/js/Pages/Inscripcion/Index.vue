@@ -82,7 +82,8 @@ const irAlFormulario = (id) => {
     const params = {
         category: id,
         section: macroSeccion.value,// Esto enviará 'inscripciones' o 'viajes'
-        profile: categoria.id_perfil
+        profile: categoria.id_perfil,
+        course:0
     };
 
     if (categoria.grupo === 'autor') {

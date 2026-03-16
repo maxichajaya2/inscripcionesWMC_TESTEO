@@ -32,6 +32,7 @@ const props = defineProps({
     categorias: Object,
     adicionales: Array,
     section: String,
+    course:Number
 })
 
 
@@ -153,249 +154,6 @@ const proceedToBilling = () => {
 
 const activeStep = ref("1"); // Control del paso actual
 
-// const handleInscripcionClick = async () => {
-//     // ACTIVAMOS EL SPINNER
-//     loading.value = true;
-
-//     // 1. Validar el formulario del hijo primero
-//     const resIns = await childFormInscription.value.getInscripcion();
-
-//     if (resIns.validate) {
-//         // Guardamos los datos para usarlos luego
-//         tempResIns.value = resIns;
-//         await confirmarYProcesar();
-
-//     } else {
-//         // SI NO VALIDA, APAGAMOS EL SPINNER PARA QUE EL USUARIO CORRIJA
-//         loading.value = false;
-//     }
-// };
-
-// 2. CREAMOS EL NUEVO HANDLER DEL PASO 3 (CURSOS)
-const handleInscripcionClick = async () => {
-    loading.value = true;
-
-    // Validamos el formulario del Paso 2
-    const resIns = await childFormInscription.value.getInscripcion();
-
-    if (resIns.validate) {
-        // A. Guardamos la data del Paso 2 en la variable temporal
-        tempResIns.value = resIns;
-
-        // B. ¡AQUÍ ESTÁ LA CLAVE! No llamamos a confirmarYProcesar todavía.
-        // Simplemente avanzamos el Stepper al Paso 3.
-        activeStep.value = "3";
-
-        // Opcional: Hacemos scroll arriba si es necesario
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-    }
-    // Si no valida, simplemente quitamos el loading y el usuario ve los errores
-    loading.value = false;
-};
-
-// const handleCursosClick = async () => {
-//     loading.value = true;
-
-//     // A. Capturamos los datos del componente hijo usando el ref
-//     // (Gracias al defineExpose que pusiste antes)
-//     let extras = [];
-//     if (childFormTourCourse.value) {
-//         extras = childFormTourCourse.value.extras_seleccionados;
-//     }
-
-//     console.log("Extras seleccionados:", extras);
-
-//     // B. Ahora sí, llamamos a la función final pasando los extras
-//     await confirmarYProcesar(extras);
-// };
-
-// const confirmarYProcesar = async () => {
-//     showRequisitosModal.value = false;
-//     loading.value = true;
-//     isPaying.value = true;
-
-//     try {
-//         const payload = new FormData();
-//         // Datos del paso 1
-//         Object.keys(data_persona.value).forEach(key => {
-//             payload.append(key, data_persona.value[key]);
-//         });
-
-//         // Datos del paso 2 guardados previamente
-//         Object.keys(tempResIns.value.formInscription).forEach(key => {
-//             if (!payload.has(key)) {
-//                 payload.append(key, tempResIns.value.formInscription[key]);
-//             }
-//         });
-
-//         const response = await axios.post('/pago/getform', payload, {
-//             headers: { 'Content-Type': 'multipart/form-data' }
-//         });
-
-
-//         if (response.data.status && response.data.formulario) {
-//             formDataPayment.value = response.data.formulario;
-//             activeStep.value = "3"; // Movemos al paso de pago manualmente
-//             loading.value = false;
-
-//             // --- ESTO ES LO QUE FALTA ---
-//             // Aseguramos que el padre sepa qué categoría es antes de mostrar el Paso 3
-//             const catId = tempResIns.value.formInscription.selected_categoria;
-//             const encontrada = props.categorias.find(c => c.id == catId);
-//             if (encontrada) {
-//                 categoria_seleccionada.value = encontrada;
-//             }
-
-//             actualizarResumen({ total: tempResIns.value.total_final });
-//             // ----------------------------
-//         } else {
-//             toast.add({ severity: 'error', summary: 'Error', detail: response.data.message });
-//             loading.value = false;
-//         }
-//     } catch (error) {
-//         console.error("Error:", error);
-//         loading.value = false;
-//     }
-// };
-
-// const handleCursosClick = async () => {
-//     loading.value = true;
-
-//     let idsExtras = [];
-
-//     if (childFormTourCourse.value) {
-//         // 1. OBTENER IDs PARA EL BACKEND (Laravel)
-//         idsExtras = childFormTourCourse.value.extras_seleccionados || [];
-
-//         // 2. OBTENER OBJETOS COMPLETOS PARA EL VISUAL (FormPayment)
-//         // Ya no usamos props.adicionales, usamos lo que nos da el hijo
-//         extras_para_mostrar.value = childFormTourCourse.value.selectedObjects || [];
-//     }
-
-//     // 3. Enviamos los IDs al backend
-//     await confirmarYProcesar(idsExtras);
-// };
-
-const handleCursosClick = async () => {
-    // 1. DISPARAR LA VALIDACIÓN DEL HIJO
-    if (childFormTourCourse.value) {
-        // Llamamos a la función que expuso el hijo
-        const esValido = childFormTourCourse.value.validarSeleccion();
-
-        if (!esValido) {
-            // Si el hijo devuelve false, apagamos el loading y NO seguimos
-            loading.value = false;
-            return;
-        }
-    }
-
-    // 2. SI ES VÁLIDO, SEGUIMOS CON EL PROCESO DE PAGO
-    loading.value = true;
-    let idsExtras = [];
-    if (childFormTourCourse.value) {
-        idsExtras = childFormTourCourse.value.extras_seleccionados || [];
-        extras_para_mostrar.value = childFormTourCourse.value.selectedObjects || [];
-    }
-
-    // Enviamos los IDs al backend
-    await confirmarYProcesar(idsExtras);
-};
-
-// const confirmarYProcesar = async (extras = []) => {
-//     // Cerramos modal de requisitos si estaba abierto
-//     showRequisitosModal.value = false;
-//     loading.value = true;
-
-//     // Activamos flag para evitar que el usuario salga de la página accidentalmente
-//     isPaying.value = true;
-
-//     try {
-//         const payload = new FormData();
-
-//         // ---------------------------------------------------------
-//         // 1. AGREGAR DATOS DEL PASO 1 (Persona)
-//         // ---------------------------------------------------------
-//         Object.keys(data_persona.value).forEach(key => {
-//             payload.append(key, data_persona.value[key]);
-//         });
-
-//         // ---------------------------------------------------------
-//         // 2. AGREGAR DATOS DEL PASO 2 (Inscripción / Facturación)
-//         // ---------------------------------------------------------
-//         // Usamos los datos guardados en la variable temporal 'tempResIns'
-//         if (tempResIns.value && tempResIns.value.formInscription) {
-//             Object.keys(tempResIns.value.formInscription).forEach(key => {
-//                 // Manejo especial para el archivo (uploadDocument)
-//                 if (key === 'uploadDocument') {
-//                     if (tempResIns.value.formInscription[key]) {
-//                         payload.append(key, tempResIns.value.formInscription[key]);
-//                     }
-//                 } else {
-//                     // Para el resto de campos, agregamos solo si no existen ya
-//                     // (para evitar duplicar campos como 'nombres' o 'documento' si se repiten)
-//                     if (!payload.has(key)) {
-//                         payload.append(key, tempResIns.value.formInscription[key]);
-//                     }
-//                 }
-//             });
-//         }
-
-//         // ---------------------------------------------------------
-//         // 3. AGREGAR DATOS DEL PASO 3 (Extras / Cursos) - ¡NUEVO!
-//         // ---------------------------------------------------------
-//         // Convertimos el array a string JSON para que Laravel lo lea fácil
-//         payload.append('extras_seleccionados', JSON.stringify(extras));
-
-
-//         // ---------------------------------------------------------
-//         // 4. ENVIAR AL BACKEND (Laravel)
-//         // ---------------------------------------------------------
-//         const response = await axios.post('/pago/getform', payload, {
-//             headers: { 'Content-Type': 'multipart/form-data' }
-//         });
-
-//         // ---------------------------------------------------------
-//         // 5. PROCESAR RESPUESTA
-//         // ---------------------------------------------------------
-//         if (response.data.status && response.data.formulario) {
-//             // A. Guardamos el formulario de Niubiz que nos devolvió el backend
-//             formDataPayment.value = response.data.formulario;
-
-//             // B. Detenemos el spinner
-//             loading.value = false;
-
-//             // C. ¡IMPORTANTE! Movemos al Paso 4 (Pago), ya que el 3 fue Cursos
-//             activeStep.value = "4";
-
-//             // D. Lógica visual: Recuperar objeto de categoría para mostrar resumen
-//             const catId = tempResIns.value.formInscription.selected_categoria;
-//             const encontrada = props.categorias.find(c => c.id == catId);
-//             if (encontrada) {
-//                 categoria_seleccionada.value = encontrada;
-//             }
-
-//             // E. Actualizar el resumen de precios en el lateral
-//             // Si el backend nos devuelve el 'total_real' (suma de inscripción + extras), usamos ese.
-//             // Si no, usamos el del paso 2 (aunque estaría desactualizado si sumaste extras).
-//             // Lo ideal es que tu controller devuelva 'total_real'.
-//             const totalFinal = response.data.total_real || tempResIns.value.total_final;
-
-//             actualizarResumen({ total: totalFinal });
-
-//         } else {
-//             // Manejo de errores que vienen del backend (status: false)
-//             toast.add({ severity: 'error', summary: 'Error', detail: response.data.message });
-//             loading.value = false;
-//         }
-
-//     } catch (error) {
-//         // Manejo de errores de red o código
-//         console.error("Error en confirmarYProcesar:", error);
-//         toast.add({ severity: 'error', summary: 'Error', detail: 'Ocurrió un error al procesar la solicitud.' });
-//         loading.value = false;
-//     }
-// };
-
 const confirmarYProcesar = async (extras = []) => {
     showRequisitosModal.value = false;
     loading.value = true;
@@ -473,41 +231,7 @@ const confirmarYProcesar = async (extras = []) => {
     }
 };
 
-const extras_resumen = computed(() => {
-    // Si no se ha montado el hijo o no hay selección, retorna vacío
-    if (!childFormTourCourse.value || !childFormTourCourse.value.extras_seleccionados) return [];
 
-    const ids = childFormTourCourse.value.extras_seleccionados;
-
-    // Filtramos de la lista completa de 'props.adicionales' los que coinciden con los IDs seleccionados
-    return props.adicionales.filter(item => ids.includes(item.id));
-});
-
-const listaAMostrar = computed(() => {
-    return props.section === 'viajes' ? props.adicionales : props.categorias;
-});
-
-// NUEVO HANDLER: Del paso 2 (Cursos) al 3 (Facturación)
-// const handleCursosHaciaFacturacion = async () => {
-//     loading.value = true;
-
-//     // Validamos la selección de cursos/tours
-//     if (childFormTourCourse.value) {
-//         const esValido = childFormTourCourse.value.validarSeleccion();
-//         if (!esValido) {
-//             loading.value = false;
-//             return;
-//         }
-
-//         // Guardamos los objetos seleccionados para el resumen final
-//         extras_para_mostrar.value = childFormTourCourse.value.selectedObjects || [];
-//     }
-
-//     // Si es válido, avanzamos al paso de Facturación
-//     activeStep.value = "3";
-//     window.scrollTo({ top: 0, behavior: 'smooth' });
-//     loading.value = false;
-// };
 const handleCursosHaciaFacturacion = async () => {
     loading.value = true;
 
@@ -581,6 +305,7 @@ onMounted(() => {
             console.log("Resumen actualizado con:", encontrada.nombre_en);
         }
     }
+
 });
 
 const handleBeforeUnload = (event) => {
@@ -605,6 +330,8 @@ onUnmounted(() => {
 watch(activeStep, () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
 });
+
+
 
 </script>
 
@@ -682,35 +409,13 @@ watch(activeStep, () => {
 
                         <!-- ========== Courses or Tours ==========
                          ==========================================  -->
-                        <!-- <StepPanel v-slot="{ activateCallback }" value="2"
-                            class="rounded-2xl border-2 border-green-iimp bg-white shadow-wmc">
-                            <FormInscription ref="childFormInscription" :data_persona="data_persona"
-                                :categorias="props.categorias" />
-                            <div class="flex justify-between p-6">
-                                <Button label="Back" severity="secondary" icon="pi pi-arrow-left"
-                                    @click="activateCallback('1')" />
-                                <Button label="Register" iconPos="right" icon="pi pi-arrow-right" :loading="loading"
-                                    @click="handleInscripcionClick" class="bg-degradient border-rounded-full" />
-                            </div>
-                        </StepPanel> -->
-                        <!-- <StepPanel v-slot="{ activateCallback }" value="2"
-                            class="rounded-2xl border-2 border-green-iimp bg-white shadow-wmc">
-                            <FormTourCourse ref="childFormTourCourse" :data_persona="data_persona"
-                                :adicionales="props.adicionales" :section="sectionUrl" />
-                            <div class="flex justify-between p-6">
-                                <Button label="Back" severity="secondary" icon="pi pi-arrow-left"
-                                    @click="activateCallback('1')" />
-                                <Button label="Continue to Billing" iconPos="right" icon="pi pi-arrow-right"
-                                    :loading="loading" @click="handleCursosHaciaFacturacion"
-                                    class="bg-degradient border-rounded-full" />
-                            </div>
-                        </StepPanel> -->
+
 
                         <StepPanel v-slot="{ activateCallback }" value="2"
                             class="rounded-2xl border-2 border-green-iimp bg-white shadow-wmc">
 
                             <FormTourCourse ref="childFormTourCourse" :data_persona="data_persona"
-                                :adicionales="props.adicionales" :section="sectionUrl" />
+                                :adicionales="props.adicionales" :section="sectionUrl" :course="props.course" />
 
                             <div
                                 class="sticky bottom-0 left-0 w-full p-4 md:p-6 bg-white/95 backdrop-blur-md border-t border-gray-200 shadow-[0_-5px_20px_rgba(0,0,0,0.1)] z-[50] flex justify-between gap-3 rounded-b-2xl">
@@ -728,55 +433,7 @@ watch(activeStep, () => {
 
                         <!-- ========== Billing Information ==========
                          ==========================================  -->
-                        <!-- <StepPanel v-slot="{ activateCallback }" value="3"
-                            class="rounded-2xl border-2 border-green-iimp bg-white shadow-wmc">
-                            <FormTourCourse ref="childFormTourCourse" :data_persona="data_persona"
-                                :adicionales="props.adicionales" :section="sectionUrl" />
-                            <div class="flex justify-between p-6">
-                                <Button label="Back" severity="secondary" icon="pi pi-arrow-left"
-                                    @click="activateCallback('2')" />
-                                <Button label="Continue to Payment" iconPos="right" icon="pi pi-arrow-right"
-                                    :loading="loading" @click="handleCursosClick"
-                                    class="bg-degradient border-rounded-full" />
-                            </div>
-                        </StepPanel> -->
 
-                        <!-- <StepPanel v-slot="{ activateCallback }" value="3"
-                            class="rounded-2xl border-2 border-green-iimp bg-white shadow-wmc">
-                            <FormInscription ref="childFormInscription" :data_persona="data_persona"
-                                :categorias="props.categorias" />
-                            <div class="mobile-floating-register z-50 animate-fade-in-up">
-                                <Button label="Back" severity="secondary" icon="pi pi-arrow-left"
-                                    @click="activateCallback('2')" />
-                                <Button label="Register & Pay" iconPos="right" icon="pi pi-arrow-right"
-                                    :loading="loading" @click="handleInscripcionFinal"
-                                    class="bg-degradient border-rounded-full" />
-                            </div>
-                        </StepPanel> -->
-                        <!-- <StepPanel v-slot="{ activateCallback }" value="3"
-                            class="rounded-2xl border-2 border-green-iimp bg-white shadow-wmc">
-
-                            <FormInscription ref="childFormInscription" :data_persona="data_persona"
-                                :categorias="props.categorias" />
-
-                            <div class="mobile-floating-register z-50 animate-fade-in-up md:hidden">
-                                <div class="flex gap-2">
-                                    <Button label="Back" severity="secondary" icon="pi pi-arrow-left"
-                                        @click="activateCallback('2')" />
-                                    <Button label="Register & Pay" iconPos="right" icon="pi pi-arrow-right"
-                                        :loading="loading" @click="handleInscripcionFinal"
-                                        class="bg-degradient border-rounded-full" />
-                                </div>
-                            </div>
-
-                            <div class="hidden md:flex justify-between p-6 border-t">
-                                <Button label="Back" severity="secondary" icon="pi pi-arrow-left"
-                                    @click="activateCallback('2')" />
-                                <Button label="Register & Pay" iconPos="right" icon="pi pi-arrow-right"
-                                    :loading="loading" @click="handleInscripcionFinal"
-                                    class="bg-degradient border-rounded-full" />
-                            </div>
-                        </StepPanel> -->
                         <StepPanel v-slot="{ activateCallback }" value="3"
                             class="rounded-2xl border-2 border-green-iimp bg-white shadow-wmc">
 
@@ -813,160 +470,152 @@ watch(activeStep, () => {
 
         </div>
 
+        <!-- NACIONALIDAD MODAL =======
+         ============================== -->
         <Dialog v-model:visible="visible" modal :showHeader="false" :closable="false" :style="{ width: '900px' }"
             class="bg-transparent shadow-none border-none px-0 overflow-hidden" :pt="{
                 mask: { class: 'bg-slate-900/90 backdrop-blur-md' },
                 content: { class: 'bg-transparent px-0 py-0 border-none shadow-none overflow-hidden' }
             }">
-            <div class="bg-white rounded-3xl overflow-hidden shadow-2xl animate-fade-in-down px-0">
 
-                <div
-                    class="bg-gradient-to-r from-[#001e3d] via-[#002855] to-[#003366] px-8 py-8 border-b-4 border-yellow-500 flex items-center justify-between relative overflow-hidden">
 
-                    <div
-                        class="absolute inset-0 opacity-20 bg-[url('https://www.transparenttextures.com/patterns/carbon-fibre.png')]">
-                    </div>
+            <div
+                class="bg-gradient-to-r from-[#001e3d] via-[#002855] to-[#003366] px-8 py-8 border-b-4 border-yellow-500 flex items-left justify-left text-left relative overflow-hidden">
 
-                    <div
-                        class="bg-white rounded-3xl overflow-hidden shadow-2xl animate-fade-in-down px-0 flex flex-col max-h-[90vh]">
-                    </div>
 
-                    <div class="relative z-10">
-                        <div class="mb-3 animate-fade-in-up" style="animation-delay: 0.1s;">
-                            <span
-                                class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-yellow-500/10 border border-yellow-500/30 backdrop-blur-md">
-                                <span class="relative flex h-2 w-2">
-                                    <span
-                                        class="animate-ping absolute inline-flex h-full w-full rounded-full bg-yellow-400 opacity-75"></span>
-                                    <span class="relative inline-flex rounded-full h-2 w-2 bg-yellow-500"></span>
-                                </span>
+                <div class="relative z-10">
+                    <div class="mb-3 animate-fade-in-up" style="animation-delay: 0.1s;">
+                        <span
+                            class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-yellow-500/10 border border-yellow-500/30 backdrop-blur-md">
+                            <span class="relative flex h-2 w-2">
                                 <span
-                                    class="text-[10px] font-bold text-yellow-400 uppercase tracking-widest">Registration
-                                    Open</span>
+                                    class="animate-ping absolute inline-flex h-full w-full rounded-full bg-yellow-400 opacity-75"></span>
+                                <span class="relative inline-flex rounded-full h-2 w-2 bg-yellow-500"></span>
                             </span>
-                        </div>
-
-                        <h2
-                            class=" text-2xl md:text-4xl text-transparent bg-clip-text bg-gradient-to-r from-yellow-200 via-yellow-400 to-yellow-600">
-                            World Mining Congress 2026
-
-                        </h2>
-                    </div>
-                </div>
-
-                <div class="p-8 md:p-12 bg-slate-50 px-4 overflow-y-auto flex-1">
-                    <div v-if="bloqueoExtranjero"
-                        class="p-4 mb-6 rounded-xl bg-amber-50 border border-amber-200 flex items-start gap-3 animate-fade-in-up">
-                        <i class="pi pi-info-circle text-amber-600 text-xl mt-0.5"></i>
-                        <p class="text-sm text-amber-800 leading-relaxed">
-                            The <b>International</b> option for Author Members or Member Participants is not available
-                            through
-                            this portal. If you are an international attendee and an active member, please contact
-                            <a href="mailto:asociados@iimp.org.pe"
-                                class="font-bold underline hover:text-amber-900">asociados@iimp.org.pe</a> for
-                            assistance.
-                        </p>
+                            <span class="text-[10px] font-bold text-yellow-400 uppercase tracking-widest">Registration
+                                Open</span>
+                        </span>
                     </div>
 
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <h2
+                        class=" text-2xl md:text-4xl text-transparent bg-clip-text bg-gradient-to-r from-yellow-200 via-yellow-400 to-yellow-600">
+                        World Mining Congress 2026
 
-
-                        <button @click="seleccionarOrigen('peruano', 1)"
-                            class="group relative h-auto rounded-2xl bg-white border border-slate-200 shadow-lg hover:shadow-2xl hover:shadow-red-900/20 transition-all duration-300 flex flex-col overflow-hidden hover:-translate-y-2">
-
-                            <div class="h-1 w-full bg-red-600"></div>
-
-                            <div class="p-5 md:p-8 flex flex-col items-center text-center h-full">
-                                <div
-                                    class="w-16 h-12 md:w-24 md:h-24 mb-4 md:mb-6 relative drop-shadow-lg group-hover:scale-110 transition-transform duration-300">
-                                    <svg viewBox="0 0 300 200" class="w-full h-full rounded-lg shadow-sm">
-                                        <rect width="300" height="200" fill="#ffffff" stroke="#e2e8f0"
-                                            stroke-width="2" />
-                                        <rect width="100" height="200" fill="#D91023" />
-                                        <rect x="200" width="100" height="200" fill="#D91023" />
-                                    </svg>
-                                    <div class="absolute inset-0 bg-red-500/20 blur-2xl -z-10 rounded-full"></div>
-                                </div>
-
-                                <h3
-                                    class="text-xl md:text-2xl font-black text-slate-800 group-hover:text-red-700 transition-colors uppercase">
-                                    National
-                                </h3>
-                                <p
-                                    class="text-xs md:text-sm text-slate-500 mt-2 mb-4 md:mb-8 leading-relaxed font-medium">
-                                    Peruvian citizen or resident with DNI.
-                                </p>
-
-                                <div class="mt-auto w-full">
-                                    <span
-                                        class="block w-full py-2.5 md:py-3 px-4 rounded-xl bg-gradient-to-r from-red-700 to-red-600 text-white font-bold text-xs md:text-sm tracking-wider uppercase shadow-md group-hover:shadow-lg group-hover:from-red-600 group-hover:to-red-500 transition-all flex items-center justify-center gap-2">
-                                        Continue Purchase <i class="pi pi-arrow-right text-[10px] md:text-xs"></i>
-                                    </span>
-                                </div>
-                            </div>
-                        </button>
-
-                        <button @click="!bloqueoExtranjero && seleccionarOrigen('extranjero', 2)"
-                            :disabled="bloqueoExtranjero" :class="[
-                                'group relative h-auto rounded-2xl bg-white border border-slate-200 shadow-lg transition-all duration-300 flex flex-col overflow-hidden',
-                                bloqueoExtranjero
-                                    ? 'opacity-60 cursor-not-allowed grayscale'
-                                    : 'hover:shadow-2xl hover:shadow-blue-900/20 hover:-translate-y-2'
-                            ]">
-
-                            <div class="h-1 w-full bg-blue-600"></div>
-
-                            <div class="p-8 flex flex-col items-center text-center h-full">
-
-                                <div
-                                    class="w-24 h-24 mb-6 relative drop-shadow-lg group-hover:scale-110 group-hover:rotate-12 transition-all duration-500">
-                                    <svg viewBox="0 0 24 24" fill="none" class="w-full h-full text-blue-600">
-                                        <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5"
-                                            fill="#eff6ff" />
-                                        <path d="M2.3 12H21.7" stroke="currentColor" stroke-width="1.5"
-                                            stroke-linecap="round" />
-                                        <path
-                                            d="M12 2.3C14.5 5 16 8.5 16 12C16 15.5 14.5 19 12 21.7C9.5 19 8 15.5 8 12C8 8.5 9.5 5 12 2.3Z"
-                                            stroke="currentColor" stroke-width="1.5" fill="#dbeafe" />
-                                    </svg>
-                                    <div class="absolute inset-0 bg-blue-500/20 blur-2xl -z-10 rounded-full"></div>
-                                </div>
-
-                                <h3
-                                    class="text-2xl font-black text-slate-800 group-hover:text-blue-700 transition-colors uppercase">
-                                    International
-                                </h3>
-                                <p class="text-sm text-slate-500 mt-2 mb-8 leading-relaxed font-medium">
-                                    Joining from abroad (Foreigner).
-                                </p>
-
-                                <div class="mt-auto w-full">
-                                    <span :class="[
-                                        'block w-full py-3 px-4 rounded-xl text-white font-bold text-sm tracking-wider uppercase shadow-md transition-all flex items-center justify-center gap-2',
-                                        bloqueoExtranjero
-                                            ? 'bg-gray-400'
-                                            : 'bg-gradient-to-r from-[#002855] to-blue-700 group-hover:from-blue-800 group-hover:to-blue-600'
-                                    ]">
-                                        {{ bloqueoExtranjero ? 'Not Available' : 'Continue Purchase' }}
-                                        <i v-if="!bloqueoExtranjero" class="pi pi-arrow-right text-xs"></i>
-                                    </span>
-                                </div>
-                            </div>
-                        </button>
-
-                    </div>
+                    </h2>
                 </div>
-
-                <div class="bg-gray-50 p-6 border-t border-slate-200 text-center">
-                    <button @click="goStart"
-                        class="group flex items-center justify-center gap-2 text-xs text-slate-400 font-bold uppercase tracking-widest hover:text-red-500 transition-colors mx-auto">
-                        <i class="pi pi-times-circle text-lg group-hover:scale-110 transition-transform"></i>
-                        Cancel Process
-                    </button>
-                </div>
-
             </div>
+
+            <div class="p-8 md:p-12 bg-slate-50 px-4 overflow-y-auto flex-1">
+                <div v-if="bloqueoExtranjero"
+                    class="p-4 mb-6 rounded-xl bg-amber-50 border border-amber-200 flex items-start gap-3 animate-fade-in-up">
+                    <i class="pi pi-info-circle text-amber-600 text-xl mt-0.5"></i>
+                    <p class="text-sm text-amber-800 leading-relaxed">
+                        The <b>International</b> option for Author Members or Member Participants is not available
+                        through
+                        this portal. If you are an international attendee and an active member, please contact
+                        <a href="mailto:asociados@iimp.org.pe"
+                            class="font-bold underline hover:text-amber-900">asociados@iimp.org.pe</a> for
+                        assistance.
+                    </p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+
+
+                    <button @click="seleccionarOrigen('peruano', 1)"
+                        class="group relative h-auto rounded-2xl bg-white border border-slate-200 shadow-lg hover:shadow-2xl hover:shadow-red-900/20 transition-all duration-300 flex flex-col overflow-hidden hover:-translate-y-2">
+
+                        <div class="h-1 w-full bg-red-600"></div>
+
+                        <div class="p-5 md:p-8 flex flex-col items-center text-center h-full">
+                            <div
+                                class="w-16 h-12 md:w-24 md:h-24 mb-4 md:mb-6 relative drop-shadow-lg group-hover:scale-110 transition-transform duration-300">
+                                <svg viewBox="0 0 300 200" class="w-full h-full rounded-lg shadow-sm">
+                                    <rect width="300" height="200" fill="#ffffff" stroke="#e2e8f0" stroke-width="2" />
+                                    <rect width="100" height="200" fill="#D91023" />
+                                    <rect x="200" width="100" height="200" fill="#D91023" />
+                                </svg>
+                                <div class="absolute inset-0 bg-red-500/20 blur-2xl -z-10 rounded-full"></div>
+                            </div>
+
+                            <h3
+                                class="text-xl md:text-2xl font-black text-slate-800 group-hover:text-red-700 transition-colors uppercase">
+                                National
+                            </h3>
+                            <p class="text-xs md:text-sm text-slate-500 mt-2 mb-4 md:mb-8 leading-relaxed font-medium">
+                                Peruvian citizen or resident with DNI.
+                            </p>
+
+                            <div class="mt-auto w-full">
+                                <span
+                                    class="block w-full py-2.5 md:py-3 px-4 rounded-xl bg-gradient-to-r from-red-700 to-red-600 text-white font-bold text-xs md:text-sm tracking-wider uppercase shadow-md group-hover:shadow-lg group-hover:from-red-600 group-hover:to-red-500 transition-all flex items-center justify-center gap-2">
+                                    Continue Purchase <i class="pi pi-arrow-right text-[10px] md:text-xs"></i>
+                                </span>
+                            </div>
+                        </div>
+                    </button>
+
+                    <button @click="!bloqueoExtranjero && seleccionarOrigen('extranjero', 2)"
+                        :disabled="bloqueoExtranjero" :class="[
+                            'group relative h-auto rounded-2xl bg-white border border-slate-200 shadow-lg transition-all duration-300 flex flex-col overflow-hidden',
+                            bloqueoExtranjero
+                                ? 'opacity-60 cursor-not-allowed grayscale'
+                                : 'hover:shadow-2xl hover:shadow-blue-900/20 hover:-translate-y-2'
+                        ]">
+
+                        <div class="h-1 w-full bg-blue-600"></div>
+
+                        <div class="p-8 flex flex-col items-center text-center h-full">
+
+                            <div
+                                class="w-24 h-24 mb-6 relative drop-shadow-lg group-hover:scale-110 group-hover:rotate-12 transition-all duration-500">
+                                <svg viewBox="0 0 24 24" fill="none" class="w-full h-full text-blue-600">
+                                    <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="1.5"
+                                        fill="#eff6ff" />
+                                    <path d="M2.3 12H21.7" stroke="currentColor" stroke-width="1.5"
+                                        stroke-linecap="round" />
+                                    <path
+                                        d="M12 2.3C14.5 5 16 8.5 16 12C16 15.5 14.5 19 12 21.7C9.5 19 8 15.5 8 12C8 8.5 9.5 5 12 2.3Z"
+                                        stroke="currentColor" stroke-width="1.5" fill="#dbeafe" />
+                                </svg>
+                                <div class="absolute inset-0 bg-blue-500/20 blur-2xl -z-10 rounded-full"></div>
+                            </div>
+
+                            <h3
+                                class="text-2xl font-black text-slate-800 group-hover:text-blue-700 transition-colors uppercase">
+                                International
+                            </h3>
+                            <p class="text-sm text-slate-500 mt-2 mb-8 leading-relaxed font-medium">
+                                Joining from abroad (Foreigner).
+                            </p>
+
+                            <div class="mt-auto w-full">
+                                <span :class="[
+                                    'block w-full py-3 px-4 rounded-xl text-white font-bold text-sm tracking-wider uppercase shadow-md transition-all flex items-center justify-center gap-2',
+                                    bloqueoExtranjero
+                                        ? 'bg-gray-400'
+                                        : 'bg-gradient-to-r from-[#002855] to-blue-700 group-hover:from-blue-800 group-hover:to-blue-600'
+                                ]">
+                                    {{ bloqueoExtranjero ? 'Not Available' : 'Continue Purchase' }}
+                                    <i v-if="!bloqueoExtranjero" class="pi pi-arrow-right text-xs"></i>
+                                </span>
+                            </div>
+                        </div>
+                    </button>
+
+                </div>
+            </div>
+
+            <div class="bg-gray-50 p-6 border-t border-slate-200 text-center">
+                <button @click="goStart"
+                    class="group flex items-center justify-center gap-2 text-xs text-slate-400 font-bold uppercase tracking-widest hover:text-red-500 transition-colors mx-auto">
+                    <i class="pi pi-times-circle text-lg group-hover:scale-110 transition-transform"></i>
+                    Cancel Process
+                </button>
+            </div>
+
         </Dialog>
+
 
         <Dialog v-model:visible="uploading" modal :closable="false" :showHeader="false" :style="{ width: '350px' }">
             <div class="flex flex-col items-center p-6 text-center">

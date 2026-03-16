@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, defineExpose, watch } from 'vue';
+import { ref, computed, defineExpose, watch, onMounted } from 'vue';
 import Checkbox from 'primevue/checkbox';
 import Accordion from 'primevue/accordion';
 import AccordionTab from 'primevue/accordiontab';
@@ -10,7 +10,8 @@ import Dialog from 'primevue/dialog';
 const props = defineProps({
     adicionales: Array, // Aquí llegarán los 13 cursos del controlador
     data_persona: Object,
-    section: String
+    section: String,
+    course: Number
 });
 
 const extras_seleccionados = ref([]);
@@ -140,6 +141,57 @@ defineExpose({
     validarSeleccion
 });
 
+// Filtramos los adicionales según el ID que viene por prop 'course'
+const adicionalesFiltrados = computed(() => {
+    const lista = props.adicionales || [];
+
+    // Si course es mayor a 0, filtramos por ese ID específico
+    if (props.course && props.course > 0) {
+        return lista.filter(item => item.id === props.course);
+    }
+
+    // Si es 0 o null, devolvemos toda la lista (que ya viene filtrada por perfil desde el backend)
+    return lista;
+});
+
+// Separamos por tipo usando la lista ya filtrada arriba
+const cursosFiltrados = computed(() => {
+    return adicionalesFiltrados.value.filter(i => i.tipo === 'curso');
+});
+
+const viajesFiltrados = computed(() => {
+    return adicionalesFiltrados.value.filter(i => i.tipo === 'viaje');
+});
+
+onMounted(() => {
+    console.log("=== INSPECCIÓN DE FILTRADO POR PERFIL ===");
+
+    // 1. Ver la lista completa que llegó del servidor
+    console.log("Cursos recibidos:", props.adicionales);
+
+    // 2. Analizar por qué cada uno está aquí
+    props.adicionales.forEach(item => {
+        console.log(`Análisis Curso ID: ${item.id} | Nombre: ${item.nombre_en}`);
+
+        if (item.precio_disponible) {
+            console.log(`   ✅ TIENE PRECIO para este perfil: USD ${item.precio_disponible.valor}`);
+            console.log(`   🔗 ID del Perfil detectado en el precio:`, item.precio_disponible.pivot?.id_perfil);
+        } else {
+            // Técnicamente, según tu controlador, esto nunca debería imprimirse
+            // porque el backend hace un ->filter() para eliminarlos.
+            console.warn(`   ❌ NO TIENE PRECIO para este perfil (no debería estar en la lista)`);
+        }
+    });
+
+    // Lógica original de autoselección
+    if (props.course) {
+        const existe = props.adicionales.some(item => item.id === props.course);
+        if (existe) {
+            extras_seleccionados.value.push(props.course);
+        }
+    }
+});
+
 </script>
 
 <template>
@@ -234,7 +286,7 @@ defineExpose({
                             </template>
 
                             <div class="space-y-4 py-2">
-                                <div v-for="item in adicionales.filter(i => i.tipo === 'curso')" :key="item.id" :class="[
+                                <div v-for="item in cursosFiltrados.filter(i => i.tipo === 'curso')" :key="item.id" :class="[
                                     extras_seleccionados.includes(item.id) ? 'bg-blue-50 border-blue-300' : 'border-gray-100 bg-white',
                                     idsBloqueados.includes(item.id) ? 'opacity-50 grayscale pointer-events-none' : ''
                                 ]">
@@ -389,12 +441,13 @@ defineExpose({
                         </AccordionTab>
                         <!-- ========= VIAJES =========
                         ================================ -->
-                        | <AccordionTab>
+
+                        | <AccordionTab v-if="props.course==0">
                             <template #header>
                                 <span class="font-bold text-blue-900 uppercase text-sm italic">Technical Visits</span>
                             </template>
                             <div class="space-y-4 py-2">
-                                <div v-for="item in adicionales.filter(i => i.tipo === 'viaje')" :key="item.id"
+                                <div v-for="item in viajesFiltrados.filter(i => i.tipo === 'viaje')" :key="item.id"
                                     class="w-full border rounded-lg transition-all shadow-sm"
                                     :class="extras_seleccionados.includes(item.id) ? 'bg-blue-50 border-blue-300' : 'border-gray-100 bg-white'">
 
@@ -512,7 +565,7 @@ defineExpose({
                         </AccordionTab>
                     </Accordion>
 
-                    <div v-if="extras_seleccionados.length > 0"
+                    <div v-if="extras_seleccionados.length > 0 && props.course ==0"
                         class="mt-8 p-5 bg-lightblue-wmc border border-blue-wmc rounded-xl flex justify-between items-center shadow-md animate-fade-in">
                         <div class="flex flex-col">
                             <span class="text-[10px] uppercase text-blue-500 font-black tracking-widest">
@@ -574,24 +627,6 @@ defineExpose({
 </template>
 
 <style scoped>
-/* Estilos para limpiar el acordeón interno */
-/* :deep(.details-accordion .p-accordion-header-link) {
-    padding: 0.5rem 1rem !important;
-    background: transparent !important;
-    border: none !important;
-    box-shadow: none !important;
-}
-
-:deep(.details-accordion .p-accordion-content) {
-    padding: 0 !important;
-    border: none !important;
-    background: transparent !important;
-}
-
-:deep(.wmc-accordion .p-accordion-tab) {
-    margin-bottom: 1rem;
-} */
-
 /* Efecto hover suave en tarjetas */
 .border-gray-100:hover {
     border-color: #cbd5e1;

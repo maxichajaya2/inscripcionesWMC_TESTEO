@@ -83,6 +83,7 @@ class InscripcionController extends Controller
     {
         $section = $request->query('section', 'inscripciones');
         $perfil_id = $request->query('profile');
+        $course   = $request->query('course');
         $perfilesPermitidos = [1, 2, 3, 5, 6, 7];
 
         // Función anónima para reutilizar la lógica de precios vigentes
@@ -147,6 +148,7 @@ class InscripcionController extends Controller
             'title' => $title,
             'section' => $section,
             'perfil_id' => (int) $perfil_id,
+            'course'  => (int)$course,
             'autores' => $autores
         ]);
     }
