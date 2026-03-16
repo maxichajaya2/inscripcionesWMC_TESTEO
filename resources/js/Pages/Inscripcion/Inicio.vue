@@ -74,13 +74,7 @@ const pasosCompletos = [
     { value: "4", label: "Payment Process" }
 ];
 
-// Esta es la clave: Filtramos el paso 3 si saltoCursos es true
-// const pasosVisibles = computed(() => {
-//     if (saltoCursos.value) {
-//         return pasosCompletos.filter(p => p.value !== "3");
-//     }
-//     return pasosCompletos;
-// });
+
 
 const pasosVisibles = computed(() => {
     // 1. Filtramos para quitar el paso de cursos si es necesario

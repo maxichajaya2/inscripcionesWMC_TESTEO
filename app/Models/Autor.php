@@ -18,13 +18,6 @@ class Autor extends Model
         // Campos del Trabajo Técnico
         'correlativo',
         'categoria',
-        'tema',
-        'titulo',
-        'palabras_clave',
-        'url_documento',
-        'tipo_industria',
-        'fecha_registro',
-        'estado',
 
         // Datos del Autor (Mapeados desde el Excel)
         'autor_nombre',
@@ -33,6 +26,7 @@ class Autor extends Model
         'autor_celular',
         'autor_correo',
         'autor_pais',
+        'autor_rol',
     ];
 
 }
