@@ -74,13 +74,6 @@ const total_extras = computed(() => {
         }, 0);
 });
 
-// const toggleSelection = (id) => {
-//     if (extras_seleccionados.value.includes(id)) {
-//         extras_seleccionados.value = extras_seleccionados.value.filter(i => i !== id);
-//     } else {
-//         extras_seleccionados.value.push(id);
-//     }
-// };
 const toggleSelection = (id) => {
     if (extras_seleccionados.value.includes(id)) {
         // Si ya está, lo quitamos normalmente
@@ -280,7 +273,7 @@ onMounted(() => {
 
                         <!-- ========= CURSO CORTOS =========
                         ================================ -->
-                        <AccordionTab>
+                        <AccordionTab v-if="props.course==0 || props.course!=14">
                             <template #header>
                                 <span class="font-bold text-blue-900 uppercase text-sm italic">Short Courses</span>
                             </template>
@@ -442,7 +435,7 @@ onMounted(() => {
                         <!-- ========= VIAJES =========
                         ================================ -->
 
-                        | <AccordionTab v-if="props.course==0">
+                        | <AccordionTab v-if="props.course==0 || props.course==14">
                             <template #header>
                                 <span class="font-bold text-blue-900 uppercase text-sm italic">Technical Visits</span>
                             </template>
@@ -450,36 +443,6 @@ onMounted(() => {
                                 <div v-for="item in viajesFiltrados.filter(i => i.tipo === 'viaje')" :key="item.id"
                                     class="w-full border rounded-lg transition-all shadow-sm"
                                     :class="extras_seleccionados.includes(item.id) ? 'bg-blue-50 border-blue-300' : 'border-gray-100 bg-white'">
-
-                                    <!-- <div class="flex items-center justify-between p-3 gap-3">
-                                        <div class="flex items-center flex-1 cursor-pointer"
-                                            @click="toggleSelection(item.id)">
-                                            <Checkbox v-model="extras_seleccionados" :value="item.id" @click.stop
-                                                class="mr-3" />
-                                            <div class="flex flex-col">
-                                                <label
-                                                    class="text-sm font-black text-blue-900 leading-tight cursor-pointer">
-                                                    {{ item.nombre_en }}
-                                                </label>
-                                                <span
-                                                    class="text-[10px] text-slate-500 font-medium italic uppercase tracking-tighter leading-none mt-1">
-                                                    {{ item.subtitulo_en || 'Technical Trip' }}
-                                                </span>
-                                            </div>
-                                        </div>
-                                        <div class="flex items-center gap-4 border-l pl-4 border-gray-100">
-                                            <Button v-if="item.itinerario" icon="pi pi-map" label="View Itinerary"
-                                                class="p-button-text p-button-sm text-green-600 font-bold uppercase text-[10px]"
-                                                @click="verItinerario(item)" />
-
-                                            <div class="text-right">
-                                                <p class="text-yellow-price font-black text-lg">
-                                                    USD {{ item.precio_disponible?.valor || 0 }}
-                                                </p>
-                                            </div>
-                                        </div>
-                                    </div> -->
-
                                     <div
                                         class="flex flex-col sm:flex-row items-start sm:items-center justify-between p-3 gap-3">
                                         <div class="flex items-start flex-1 cursor-pointer w-full min-w-0"
