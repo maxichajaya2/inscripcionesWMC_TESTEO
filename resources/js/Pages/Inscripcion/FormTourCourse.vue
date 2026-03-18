@@ -127,12 +127,6 @@ watch(() => props.section, (newVal) => {
     console.log("¡Sección recibida en el hijo!", newVal);
 }, { immediate: true });
 
-defineExpose({
-    extras_seleccionados,
-    total_extras,
-    selectedObjects,
-    validarSeleccion
-});
 
 // Filtramos los adicionales según el ID que viene por prop 'course'
 const adicionalesFiltrados = computed(() => {
@@ -185,6 +179,12 @@ onMounted(() => {
     }
 });
 
+defineExpose({
+    extras_seleccionados,
+    total_extras,
+    selectedObjects,
+    validarSeleccion
+});
 
 
 </script>
