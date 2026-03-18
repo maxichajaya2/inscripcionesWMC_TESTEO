@@ -66,7 +66,7 @@ class DocumentApiController extends Controller
         return $response;
     }
 
-     public function getPersonData(Request $request)
+    public function getPersonData(Request $request)
     {
         if (!str_contains($request->headers->get('referer'), 'registro') || (csrf_token() === null)) {
             abort(403, 'Unauthorized POST request.');
@@ -81,7 +81,7 @@ class DocumentApiController extends Controller
         /** ******* LOCAL *********/
         // $urlIIMP = "https://secure2.iimp.org:8443/KBServiciosPruebaIIMPJavaEnvironment/rest/WSViewPersona";
 
-         /** ******* PRODUCCION *********/
+        /** ******* PRODUCCION *********/
         $urlIIMP = "https://secure2.iimp.org:8443/KBServiciosIIMPJavaEnvironment/rest/WSViewPersona";
 
         $resIIMP = $wsController->sendWS($urlIIMP, json_encode([
@@ -159,13 +159,15 @@ class DocumentApiController extends Controller
                 $persona->empresa    = $dataIIMP->empresa ?? null; // Usamos texto de la API
             }
 
+            $fecha = $dataIIMP->fecha_nacimiento;
+
             $persona->nombres           = $dataIIMP->nombres;
             $persona->apellido_paterno  = $dataIIMP->apellido_paterno;
             $persona->apellido_materno  = $dataIIMP->apellido_materno;
             $persona->correo            = $dataIIMP->correo ?? $persona->correo;
             $persona->celular           = $dataIIMP->celular ?? $persona->celular;
             $persona->sexo              = $dataIIMP->sexo ?? $persona->sexo;
-            $persona->fecha_nacimiento  = $dataIIMP->fecha_nacimiento ?? $persona->fecha_nacimiento;
+            $persona->fecha_nacimiento  = $fecha === ('0000-00-00' || empty($fecha)) ? ($persona->fecha_nacimiento ?: null): $fecha;
             $persona->es_socio          = $dataIIMP->asociado ?? false;
             $persona->sie_code          = $dataIIMP->sie_code ?? $persona->sie_code;
 
