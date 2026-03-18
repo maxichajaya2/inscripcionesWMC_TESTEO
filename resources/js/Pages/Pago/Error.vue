@@ -2,6 +2,7 @@
 import AppLayout from '@/Layouts/AppLayout.vue';
 import Button from 'primevue/button';
 import { router } from '@inertiajs/vue3';
+import { onMounted } from 'vue';
 import '../../../css/inscripciones.css';
 
 const props = defineProps({
@@ -18,6 +19,13 @@ const retry = () => {
 };
 
 const goStart = () => router.get(route('inscripcion.index'));
+
+onMounted(() => {
+    if (window.fbq) {
+        window.fbq('track', 'Error de pago'); // O 'Purchase' si ya hubo pago
+    }
+});
+
 </script>
 
 <template>
