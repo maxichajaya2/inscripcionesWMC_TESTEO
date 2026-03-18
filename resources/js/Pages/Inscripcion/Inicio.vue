@@ -428,7 +428,7 @@ watch(activeStep, (newStep) => {
 
     switch (newStep) {
         case "1":
-            window.fbq('track', 'Personal Details');
+            window.fbq('track', 'Personal Details', { step: 'Personal Details' });
             break;
         case "2":
             window.fbq('track', 'Billing Information', { step: 'Billing Information' });
