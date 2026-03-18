@@ -428,16 +428,16 @@ watch(activeStep, (newStep) => {
 
     switch (newStep) {
         case "1":
-            window.fbq('track', 'Personal Details', { step: 'Personal Details' });
+            window.fbq('track', 'Personal Details WMC', { step: 'Personal Details' });
             break;
         case "2":
-            window.fbq('track', 'Billing Information', { step: 'Billing Information' });
+            window.fbq('track', 'Billing Information WMC', { step: 'Billing Information' });
             break;
         case "3":
-            window.fbq('track', 'Courses or Visit', { step: 'Courses or Tours' });
+            window.fbq('track', 'Courses or Visit WMC', { step: 'Courses or Tours' });
             break;
         case "4":
-            window.fbq('track', 'Payment Process', { step: 'Payment Process' });
+            window.fbq('track', 'Payment Process WMC', { step: 'Payment Process' });
             break;
     }
 });
