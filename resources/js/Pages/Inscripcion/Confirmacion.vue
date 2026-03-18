@@ -131,7 +131,7 @@ const goStart = () => {
 
 onMounted(() => {
     if (window.fbq) {
-        window.fbq('track', 'Registro Exitoso'); // O 'Purchase' si ya hubo pago
+        window.fbq('track', 'Successful Registration WMC 2026'); // Or 'Purchase' if payment was completed
     }
 });
 

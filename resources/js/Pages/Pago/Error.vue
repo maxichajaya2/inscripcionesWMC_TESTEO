@@ -22,7 +22,7 @@ const goStart = () => router.get(route('inscripcion.index'));
 
 onMounted(() => {
     if (window.fbq) {
-        window.fbq('track', 'Error de pago'); // O 'Purchase' si ya hubo pago
+        window.fbq('track', 'Payment Error WMC 2026'); // Or 'Purchase' if payment was completed
     }
 });
 
