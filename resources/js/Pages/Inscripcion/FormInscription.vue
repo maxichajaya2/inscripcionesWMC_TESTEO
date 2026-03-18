@@ -621,6 +621,13 @@ const onlyNumberKey = (event) => {
 
 
 defineExpose({ getInscripcion });
+
+onMounted(() => {
+    if (window.fbq) {
+        window.fbq('track', 'Facturacion'); // Indica que el usuario empezó a llenar sus datos
+    }
+});
+
 </script>
 
 <template>
