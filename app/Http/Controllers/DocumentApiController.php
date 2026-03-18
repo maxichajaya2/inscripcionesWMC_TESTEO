@@ -167,7 +167,12 @@ class DocumentApiController extends Controller
             $persona->correo            = $dataIIMP->correo ?? $persona->correo;
             $persona->celular           = $dataIIMP->celular ?? $persona->celular;
             $persona->sexo              = $dataIIMP->sexo ?? $persona->sexo;
-            $persona->fecha_nacimiento  = $fecha === ('0000-00-00' || empty($fecha)) ? ($persona->fecha_nacimiento ?: null): $fecha;
+            if ($fecha === '0000-00-00' || empty($fecha)) {
+                // Si es inválida, mantenemos la que tiene o ponemos null
+                $persona->fecha_nacimiento = $persona->exists ? $persona->fecha_nacimiento : null;
+            } else {
+                $persona->fecha_nacimiento = $fecha;
+            }
             $persona->es_socio          = $dataIIMP->asociado ?? false;
             $persona->sie_code          = $dataIIMP->sie_code ?? $persona->sie_code;
 
