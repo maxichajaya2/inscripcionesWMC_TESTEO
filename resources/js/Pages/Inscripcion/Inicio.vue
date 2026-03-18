@@ -423,6 +423,24 @@ watch(activeStep, () => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
 });
 
+watch(activeStep, (newStep) => {
+    if (!window.fbq) return;
+
+    switch (newStep) {
+        case "1":
+            window.fbq('track', 'PageView');
+            break;
+        case "2":
+            window.fbq('track', 'Contact', { step: 'Billing Information' });
+            break;
+        case "3":
+            window.fbq('track', 'AddToCart', { step: 'Courses or Tours' });
+            break;
+        case "4":
+            window.fbq('track', 'InitiateCheckout', { step: 'Payment Process' });
+            break;
+    }
+});
 
 </script>
 
@@ -465,7 +483,7 @@ watch(activeStep, () => {
                          ==========================================  -->
                         <StepPanel v-slot="{ activateCallback }" value="1"
                             class="rounded-2xl border-2 border-green-iimp bg-white-price shadow-wmc">
-                            <FormValidacionDoc ref="childFormValidacionDoc" :tipo_origen="tipo_origen"
+                            <FormValidacionDoc ref="childFormValidacionDoc" :tipo_origen="tipo_origen" v-if="activeStep === '1'"
                                 :autores="autores" :perfil_id="props.perfil_id" />
                             <div
                                 class="sticky bottom-0 left-0 w-full p-4 md:p-6 bg-white/95 backdrop-blur-md border-t border-gray-200 shadow-[0_-5px_20px_rgba(0,0,0,0.1)] z-[50] flex justify-end gap-3 rounded-b-2xl">
@@ -496,7 +514,7 @@ watch(activeStep, () => {
                         <StepPanel v-slot="{ activateCallback }" value="2"
                             class="rounded-2xl border-2 border-green-iimp bg-white shadow-wmc">
 
-                            <FormInscription ref="childFormInscription" :data_persona="data_persona"
+                            <FormInscription ref="childFormInscription" :data_persona="data_persona" v-if="activeStep === '2'"
                                 :categorias="props.categorias" />
 
                             <div
@@ -515,7 +533,7 @@ watch(activeStep, () => {
                             class="rounded-2xl border-2 border-green-iimp bg-white shadow-wmc">
 
                             <FormTourCourse ref="childFormTourCourse" :data_persona="data_persona"
-                                :adicionales="props.adicionales" :section="sectionUrl" :course="props.course"    />
+                                :adicionales="props.adicionales" :section="sectionUrl" :course="props.course" v-if="activeStep === '3'"   />
 
                             <div
                                 class="sticky bottom-0 left-0 w-full p-4 md:p-6 bg-white/95 backdrop-blur-md border-t border-gray-200 shadow-[0_-5px_20px_rgba(0,0,0,0.1)] z-[50] flex justify-between gap-3 rounded-b-2xl">
@@ -534,7 +552,7 @@ watch(activeStep, () => {
                         <StepPanel v-slot="{ activateCallback }" value="4"
                             class="rounded-2xl border-2 border-green-iimp bg-white shadow-wmc">
 
-                            <FormPayment ref="childFormPayment" :data_persona="data_persona"
+                            <FormPayment ref="childFormPayment" :data_persona="data_persona" v-if="activeStep === '4'"
                                 :formulario="formDataPayment" :categoria_seleccionada="categoria_seleccionada"
                                 :extras_seleccionados="extras_para_mostrar" />
 

@@ -185,11 +185,7 @@ onMounted(() => {
     }
 });
 
-onMounted(() => {
-    if (window.fbq) {
-        window.fbq('track', 'AddToCart', { content_category: 'Cursos y Visitas' });
-    }
-});
+
 
 </script>
 

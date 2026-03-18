@@ -634,11 +634,7 @@ onMounted(() => {
     console.log("Lista de Autores recibida:", props.autores);
 });
 
-onMounted(() => {
-    if (window.fbq) {
-        window.fbq('track', 'Contact'); // Registra que avanzó a validación
-    }
-});
+
 
 </script>
 

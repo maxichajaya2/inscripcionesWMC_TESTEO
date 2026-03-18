@@ -142,11 +142,7 @@ const scriptData = computed(() => {
     return props.formulario.formulario ? props.formulario.formulario.script : props.formulario.script;
 });
 
-onMounted(() => {
-    if (window.fbq) {
-        window.fbq('track', 'InitiateCheckout');
-    }
-});
+
 
 </script>
 

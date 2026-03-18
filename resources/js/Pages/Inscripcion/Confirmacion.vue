@@ -129,11 +129,8 @@ const goStart = () => {
     router.get(route('inscripcion.index'));
 };
 
-onMounted(() => {
-    if (window.fbq) {
-        window.fbq('track', 'CompleteRegistration'); // O 'Purchase' si ya hubo pago
-    }
-});
+
+
 
 </script>
 
