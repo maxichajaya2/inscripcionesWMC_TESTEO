@@ -21,12 +21,41 @@ import InputGroupAddon from 'primevue/inputgroupaddon';
 import "../../../css/inscripciones.css";
 
 const page = usePage();
-const toast = useToast();
 const props = defineProps({
     data_persona: Object,
     categorias: Object,
-    saved_values: Object
+    saved_values: Object,
+    cupones: Object
 });
+
+const toast = useToast();
+const empresaCupon = ref(null);
+const codigoVoucher = ref('');
+const loadingCupon = ref(false);
+const cuponAplicado = ref(false);
+const mensajeVoucher = ref({ texto: '', tipo: '' });
+
+const empresasAliadas = computed(() => {
+    if (!props.cupones) return [];
+
+    const lista = Object.values(props.cupones).map(c => {
+        // Validamos si aún tiene stock disponible
+        const tieneStock = parseInt(c.usos_actuales) < parseInt(c.limite_usos);
+
+        return {
+            id: c.id,
+            nombre: tieneStock ? c.razon_social : `${c.razon_social} (CUPONES AGOTADOS)`,
+            ruc: c.num_documento,
+            codigo: c.codigo_cupon,
+            valor: c.valor,
+            tipo_doc: c.tipo_documento,
+            disabled: !tieneStock // Nueva propiedad para deshabilitar en el Select
+        };
+    });
+
+    return lista.sort((a, b) => a.nombre.localeCompare(b.nombre));
+});
+
 const fieldNames = {
     selected_categoria: 'Registration Category',
     tipoDocumentoEmpresa: 'Billing Document Type',
@@ -38,7 +67,6 @@ const fieldNames = {
     reglamento: 'Terms and Conditions Acceptance',
     uploadDocument: 'Category Required Document'
 };
-
 
 const es_socio = ref(false);
 const loading_doc = ref(false);
@@ -55,14 +83,13 @@ const maxSize = 6291456;
 const allowedTypes = ['application/pdf', 'image/png', 'image/jpg', 'image/jpeg'];
 const fileupload = ref(null);
 const alphanumericMessage = ref('');
+const descuentoAplicadoMonto = ref(0);
 // Agregamos un estado para controlar si el usuario puede editar manualmente
 const isEditingBilling = ref(false);
-const dniMessage = ref('');
+const cuponIdSeleccionado = ref(null);
 let current_price = 0;
 const tipoDocumento = computed(() => page.props.general.tipDocEmp)
 
-
-const departamentos = ref();
 const days = { 'mie': 'Wednesday', 'jue': 'Thursday', 'vie': 'Friday' };
 const current_days = { 'lun': false, 'mar': false, 'mie': false, 'jue': false, 'vie': false };
 
@@ -112,7 +139,6 @@ const [selectTipoDocPago] = defineField('selectTipoDocPago');
 const [selected_categoria, selected_categoriaAttrs] = defineField('selected_categoria');
 const [selectedDays, selectedDaysAttrs] = defineField('selectedDays');
 const [uploadDocument] = defineField('uploadDocument');
-
 
 const is_category_fixed = ref(false);
 const urlParams = new URLSearchParams(window.location.search);
@@ -182,21 +208,72 @@ const getInscripcion = async () => {
 
     return {
         validate: true,
-        formInscription: values,
+        formInscription: {
+            ...values,
+            codigo_cupon: codigoVoucher.value, // Enviamos el código escrito
+            empresa_id: empresaCupon.value?.id, // Enviamos el ID de la empresa aliada
+            id_cupon: cuponIdSeleccionado.value,
+        },
         total_final: total.value // Aquí enviará 0 si es viajes
     };
 };
 
-const camposFacturacionBloqueados = computed(() => {
-    // Si es RUC 20, bloqueamos siempre (a menos que no se haya buscado nada aún)
-    // Si NO es RUC 20 (ej. RUC 10 o DNI), dependemos de isEditingBilling
-    if (esRuc20.value) {
-        return !isEditingBilling.value || !showManualAlert.value;
+const validarCuponLocal = async () => {
+    // 1. Validar que existan los datos necesarios
+    if (!codigoVoucher.value || !empresaCupon.value) {
+        mensajeVoucher.value = { texto: 'Please select a company and code.', tipo: 'error' };
+        return;
     }
 
-    // Para RUC 10 o DNI, seguimos tu lógica normal
-    return !isEditingBilling.value;
-});
+    loadingCupon.value = true;
+
+    // 2. REINICIO TOTAL (Para evitar que el mensaje de error de la imagen se quede pegado)
+    mensajeVoucher.value = { texto: '', tipo: '' };
+    cuponAplicado.value = false;
+    descuentoAplicadoMonto.value = 0;
+
+    try {
+        // 3. Normalizamos datos para la búsqueda
+        const idBuscado = Number(empresaCupon.value.id);
+        const codigoIngresado = codigoVoucher.value.toString().trim().toUpperCase();
+
+        const cuponData = Object.values(props.cupones).find(c => {
+            const idBD = Number(c.id);
+            const codigoBD = c.codigo_cupon.toString().trim().toUpperCase();
+            return idBD === idBuscado && codigoBD === codigoIngresado;
+        });
+
+        if (cuponData) {
+            // --- ÉXITO ---
+            cuponAplicado.value = true;
+            descuentoAplicadoMonto.value = Number(cuponData.valor);
+            cuponIdSeleccionado.value = cuponData.id;
+
+            mensajeVoucher.value = {
+                texto: `¡Coupon of ${cuponData.valor}% valid for ${cuponData.razon_social}!`,
+                tipo: 'success'
+            };
+
+            toast.add({
+                severity: 'success',
+                summary: 'Coupon Validated',
+                detail: 'Billing data loaded successfully.',
+                life: 4000
+            });
+        } else {
+            // --- ERROR: NO COINCIDE ---
+            mensajeVoucher.value = {
+                texto: 'The code does not match the selected company.',
+                tipo: 'error'
+            };
+        }
+    } catch (e) {
+        console.error("Error validando:", e);
+        // mensajeVoucher.value = { texto: 'Error validating coupon.', tipo: 'error' };
+    } finally {
+        loadingCupon.value = false;
+    }
+};
 
 
 onMounted(() => {
@@ -204,13 +281,6 @@ onMounted(() => {
     tipoDocumentoEmpresa.value = 1;
     selectTipoDocPago.value = 2;
     selectTipoPago.value = 3;
-
-    // 1. Si los datos ya están presentes al montar, llenar facturación
-    // if (props.data_persona?.persona) {
-    //     fillBillingData(props.data_persona.persona);
-    //     es_socio.value = props.data_persona.persona.es_socio;
-    //     loadDepartamentos();
-    // }
 
     // 2. Lógica de URL y categorías
     const urlParams = new URLSearchParams(window.location.search);
@@ -233,11 +303,16 @@ onMounted(() => {
         }, 150);
     }
 
+    if (esSeccionViajes.value) {
+        cuponAplicado.value = false;
+        descuentoAplicadoMonto.value = 0;
+        empresaCupon.value = null;
+        codigoVoucher.value = '';
+    }
+
 
 });
 
-
-// Busca este watcher en tu código y modifícalo así:
 watch(selected_categoria, (newId) => {
     if (!newId) return; // Si es nulo, no hacer nada
 
@@ -289,17 +364,6 @@ const onlyAlphanumericKey = (event) => {
     return true;
 };
 
-// EXTREMA SEGURIDAD: Watcher para limpiar si pegan texto con símbolos
-// watch(documentoEmpresa, (newValue) => {
-//     if (tipo_doc.value !== 1 && newValue) { // Solo si NO es DNI
-//         const cleaned = newValue.replace(/[^a-zA-Z0-9]/g, '');
-//         if (cleaned !== newValue) {
-//             documentoEmpresa.value = cleaned;
-//             alphanumericMessage.value = "Special characters were removed";
-//             setTimeout(() => { alphanumericMessage.value = ''; }, 3000);
-//         }
-//     }
-// });
 watch(documentoEmpresa, (newValue) => {
     // CAMBIO AQUÍ: tipoDocumentoEmpresa en lugar de tipo_doc
     if (tipoDocumentoEmpresa.value !== 1 && newValue) {
@@ -337,10 +401,12 @@ watch(tipoDocumentoEmpresa, (newVal, oldVal) => {
     }
 });
 
-const loadDepartamentos = async () => {
-    departamentos.value = await Functions.loadDepartamentos(pais.value);
-}
-
+watch(empresaCupon, () => {
+    codigoVoucher.value = '';
+    mensajeVoucher.value = { texto: '', tipo: '' };
+    cuponAplicado.value = false;
+    descuentoAplicadoMonto.value = 0;
+});
 
 const getEmpresaData = async () => {
     // 1. Limpieza preventiva: Blanqueamos campos y ocultamos alertas previas
@@ -463,17 +529,6 @@ function setTipoDocPago() {
     }
 }
 
-const enableManualEdit = () => {
-    isEditingBilling.value = true;
-    block_direction.value = false; // Desbloqueamos dirección para edición manual
-    toast.add({
-        severity: 'info',
-        summary: 'Manual Edit Enabled',
-        detail: 'You can now modify the billing information fields.',
-        life: 3000
-    });
-};
-
 const fillBillingData = (p) => {
     if (!p) return;
 
@@ -540,8 +595,6 @@ watch(() => props.data_persona, (newVal) => {
     }
 }, { immediate: true, deep: true });
 
-
-
 const filteredDocTypes = computed(() => {
     const p = props.data_persona?.persona || props.data_persona;
 
@@ -607,18 +660,14 @@ const onlyNumberKey = (event) => {
     return true;
 }
 
-// const onlyAlphanumericKey = (event) => {
-//     const charCode = event.which ? event.which : event.keyCode;
-//     const charStr = String.fromCharCode(charCode);
+const montoDescuentoEfectivo = computed(() => {
+    // Calculamos cuánto dinero representa el % de descuento sobre el total
+    return (total.value * descuentoAplicadoMonto.value) / 100;
+});
 
-//     // Regex: Permite solo letras (a-z, A-Z) y números (0-9)
-//     if (!/^[a-zA-Z0-9]+$/.test(charStr)) {
-//         event.preventDefault();
-//         return false;
-//     }
-//     return true;
-// };
-
+const totalFinalConDescuento = computed(() => {
+    return total.value - montoDescuentoEfectivo.value;
+});
 
 defineExpose({ getInscripcion });
 
@@ -792,6 +841,115 @@ defineExpose({ getInscripcion });
                         </template>
                     </Card>
 
+                    <!-- =========== CUPON DE DESCUENTO  ========== -->
+                    <!-- ================================= -->
+                    <Card v-if="!esSeccionViajes"
+                        class="mt-6 border border-dashed border-blue-400 bg-blue-50/50 shadow-sm">
+                        <template #content>
+                            <div class="flex items-start gap-3 mb-4 p-3 bg-white/60 rounded-lg border border-blue-100">
+                                <i class="pi pi-info-circle text-blue-500 mt-1"></i>
+                                <p class="text-xs text-blue-800 leading-tight">
+                                    The discount coupon applies exclusively to previously registered <strong>partner
+                                        companies and
+                                        institutions</strong>. If your organization has an active agreement, select the
+                                    name and validate the code.
+                                </p>
+                            </div>
+
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
+                                <div class="flex flex-col gap-2">
+                                    <label class="text-xs font-black text-blue-900 uppercase tracking-wider">
+                                        Company / Institution
+                                    </label>
+                                    <Select v-model="empresaCupon" :options="empresasAliadas" optionLabel="nombre"
+                                        optionDisabled="disabled" placeholder="Type to search your company..."
+                                        class="w-full border-blue-300" :filter="true"
+                                        filterPlaceholder="Ex: ALS PERU, MDH..." resetFilterOnHide>
+                                        <template #option="slotProps">
+                                            <div class="flex flex-col"
+                                                :class="{ 'opacity-50 cursor-not-allowed': slotProps.option.disabled }">
+                                                <div class="flex items-center gap-2">
+                                                    <span
+                                                        :class="{ 'font-bold text-sm': true, 'text-gray-900': slotProps.option.disabled }">
+                                                        {{ slotProps.option.nombre }}
+                                                    </span>
+                                                    <span v-if="slotProps.option.disabled"
+                                                        class="bg-red-100 text-red-600 text-[9px] px-2 py-0.5 rounded-full font-black uppercase">
+                                                        Sold Out
+                                                    </span>
+                                                </div>
+                                                <small v-if="slotProps.option.disabled"
+                                                    class="text-red-600 italic text-[10px]">
+                                                    This corporate coupon has reached its usage limit.
+                                                </small>
+                                            </div>
+                                        </template>
+                                    </Select>
+                                </div>
+
+                                <div class="flex flex-col gap-2">
+                                    <label class="text-xs font-black text-blue-900 uppercase tracking-wider">
+                                        Discount Code
+                                    </label>
+                                    <InputGroup>
+                                        <InputText v-model="codigoVoucher" placeholder="Enter code"
+                                            class="border-blue-300 uppercase" :disabled="!empresaCupon" />
+                                        <Button label="Validate" icon="pi pi-ticket"
+                                            class="!bg-blue-700 !border-blue-700 hover:!bg-blue-800"
+                                            :loading="loadingCupon" :disabled="!codigoVoucher"
+                                            @click="validarCuponLocal" />
+                                    </InputGroup>
+                                </div>
+                            </div>
+
+                            <div v-if="mensajeVoucher.texto" class="mt-3 text-center animate-fade-in">
+                                <span :class="mensajeVoucher.tipo === 'success' ? 'text-green-600' : 'text-red-600'"
+                                    class="text-xs font-bold flex items-center justify-center gap-2">
+                                    <i
+                                        :class="mensajeVoucher.tipo === 'success' ? 'pi pi-check-circle' : 'pi pi-times-circle'"></i>
+                                    {{ mensajeVoucher.texto }}
+                                </span>
+                            </div>
+                        </template>
+                    </Card>
+
+                    <!-- RESUMEN VISUAL DE DESCUENTO -->
+                    <div v-if="cuponAplicado"
+                        class="mt-6 p-4 bg-green-50 border border-green-200 rounded-xl animate-fade-in">
+                        <div class="flex flex-col gap-2">
+                            <div class="flex justify-between items-center text-gray-600">
+                                <span class="text-sm font-medium">Base Price:</span>
+                                <span class="text-sm line-through">USD {{ Number(total || 0).toFixed(2) }}</span>
+                            </div>
+
+                            <div class="flex justify-between items-center text-red-600 font-bold">
+                                <div class="flex items-center gap-2">
+                                    <i class="pi pi-tag text-xs"></i>
+                                    <span class="text-sm uppercase tracking-tight">
+                                        Corporate Discount ({{ descuentoAplicadoMonto }}%):
+                                    </span>
+                                </div>
+                                <span class="text-sm">- USD {{ Number(montoDescuentoEfectivo || 0).toFixed(2) }}</span>
+                            </div>
+
+                            <Divider class="!my-1" />
+
+                            <div class="flex justify-between items-center">
+                                <span class="text-blue-900 font-black uppercase text-xs tracking-widest">
+                                    Total to Pay:
+                                </span>
+                                <div class="flex flex-col items-end">
+                                    <span class="text-2xl font-black text-green-700 leading-none">
+                                        USD {{ Number(totalFinalConDescuento || 0).toFixed(2) }}
+                                    </span>
+                                    <small class="text-[10px] text-green-600 font-bold uppercase tracking-tighter">
+                                        Benefit applied successfully!
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                 </template>
             </Card>
         </div>
@@ -942,7 +1100,7 @@ defineExpose({ getInscripcion });
                             <InputText v-model="direccionEmpresa" class="w-full border-green-iimp"
                                 :disabled="esRuc20 || loading_doc" />
                             <small class="text-red-600" v-if="errors.direccionEmpresa">{{ errors.direccionEmpresa
-                                }}</small>
+                            }}</small>
                         </div>
 
                         <div class="grid gap-6 md:grid-cols-2">
@@ -958,7 +1116,7 @@ defineExpose({ getInscripcion });
                                 <InputText v-model="correo_facturador" class="w-full border-green-iimp"
                                     :disabled="loading_doc" />
                                 <small class="text-red-600" v-if="errors.correo_facturador">{{ errors.correo_facturador
-                                    }}</small>
+                                }}</small>
                             </div>
                         </div>
                     </div>

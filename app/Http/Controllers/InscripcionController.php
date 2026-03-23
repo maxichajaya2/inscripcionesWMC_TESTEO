@@ -21,6 +21,7 @@ use Illuminate\Support\Facades\Log;
 use App\Models\CategoriaCursoViaje;
 use App\Models\Precio;
 use App\Models\Autor;
+use App\Models\Cupon;
 
 class InscripcionController extends Controller
 {
@@ -85,6 +86,7 @@ class InscripcionController extends Controller
         $perfil_id = $request->query('profile');
         $course   = $request->query('course');
         $perfilesPermitidos = [1, 2, 3, 5, 6, 7];
+        $now = Carbon::now();
 
         // Función anónima para reutilizar la lógica de precios vigentes
         $filtroPrecios = function ($query) {
@@ -103,6 +105,13 @@ class InscripcionController extends Controller
                 return $cat;
             });
 
+        $cupones = Cupon::query()
+            ->where('is_active', true) // Según tu imagen es 'is_active'
+            ->where('fecha_inicio', '<=', $now) // Debe haber empezado (inicio menor o igual a hoy)
+            ->where('fecha_fin', '>=', $now)   // No debe haber terminado (fin mayor o igual a hoy)
+            // ->whereRaw('usos_actuales < limite_usos') // Validación extra de stock
+            ->get();
+
         $autores = [];
 
         if ($perfil_id == 1 || $perfil_id == 2 || $perfil_id == 3 || $perfil_id == 4) {
@@ -110,7 +119,6 @@ class InscripcionController extends Controller
         }
 
         $perfilesPermitidos = [1, 2, 3, 5, 6, 7];
-
 
         // 2. Adicionales (Cursos/Tours) con validación de perfiles
         if (!in_array($perfil_id, $perfilesPermitidos)) {
@@ -147,6 +155,7 @@ class InscripcionController extends Controller
             'adicionales' => $adicionales,
             'title' => $title,
             'section' => $section,
+            'cupones' => $cupones,
             'perfil_id' => (int) $perfil_id,
             'course'  => (int)$course,
             'autores' => $autores
@@ -182,9 +191,10 @@ class InscripcionController extends Controller
         $total = $calculo['total'];
         $nombres_extras = $calculo['nombres_extras'];
         $dias_json = $calculo['dias_json'];
+        $descuento = $calculo['descuento_total'] ?? 0;
 
         // 5. Crear Facturación y Cuota
-        $facturacion = $this->createFacturacion($request, $persona, $categoria, $total, $nombres_extras);
+        $facturacion = $this->createFacturacion($request, $persona, $categoria, $total, $nombres_extras, $descuento);
 
         // dd($facturacion);
 
@@ -194,7 +204,7 @@ class InscripcionController extends Controller
 
         // 7. Generar respuesta de Niubiz
         // dd($this->generateNiubizResponse($persona, $inscripcion, $facturacion));
-        return $this->generateNiubizResponse($persona, $inscripcion, $facturacion);
+        return $this->generateNiubizResponse($persona, $inscripcion, $facturacion, $descuento);
     }
 
     // =========================================================================
@@ -305,6 +315,7 @@ class InscripcionController extends Controller
         $nombres_extras = [];
         // $dias_json = '{"lun":1,"mar":1,"mie":1,"jue":1,"vie":1}';
         $dias_json = null;
+        $descuento_monto = 0.0;
 
         // 1. OBTENER PRECIO DE LA CATEGORÍA (Relación: precio)
         $precio_base_obj = $categoria->precio->first(function ($p) use ($hoy) {
@@ -314,22 +325,28 @@ class InscripcionController extends Controller
             );
         }) ?? $categoria->precio->first();
 
-        // dd( $precio_base_obj);
         $valor_unitario_cat = $precio_base_obj ? (float)$precio_base_obj->valor : 0;
+
+        if ($request->filled('id_cupon') && $request->input('id_cupon') !== 'null' && $request->input('section') !== 'viajes') {
+            $cupon = \App\Models\Cupon::where('id', (int)$request->input('id_cupon'))
+                ->where('codigo_cupon', $request->input('codigo_cupon'))
+                ->where('is_active', true)
+                ->first();
+
+            if ($cupon) {
+                $descuento_monto = ($valor_unitario_cat * ($cupon->valor / 100));
+                $valor_unitario_cat = $valor_unitario_cat - $descuento_monto;
+            }
+        }
 
         // 2. LÓGICA DE INSCRIPCIÓN: ¿Paga entrada al congreso o solo adicionales?
         if ($request->input('section') === 'viajes') {
             // Si viene de la pestaña de tours, la inscripción base es CERO
             $total_inscripcion = 0.0;
         } else {
-            // Si es inscripción normal, verificamos si es por día (ID 39 o similares)
-            // $nombre_en_upper = strtoupper($categoria->nombre_en);
 
             $nombre_en = strtoupper($categoria->nombre_en);
             $nombre_es = strtoupper($categoria->nombre_es);
-
-            // $es_por_dia = str_contains($nombre_en_upper, ' DAY') ||
-            //     (str_contains(strtoupper($categoria->nombre_es), ' DIA') && !str_contains($nombre_en_upper, 'STUDENT'));
 
             // Si contiene STUDENT o ESTUDIANTE, NUNCA es por día (es Full Event)
             $es_estudiante = str_contains($nombre_en, 'STUDENT') || str_contains($nombre_es, 'ESTUDIANTE');
@@ -337,23 +354,6 @@ class InscripcionController extends Controller
             // Es por día SOLO si tiene la palabra "DAY" o "DIA" pero NO es estudiante
             $es_por_dia = !$es_estudiante && (str_contains($nombre_en, ' DAY') || str_contains($nombre_es, ' DIA'));
 
-            // if ($es_por_dia) {
-            //     $selectedDays = $request->input('selectedDays', []);
-            //     if (is_string($selectedDays)) $selectedDays = explode(',', $selectedDays);
-
-            //     $total_inscripcion = count($selectedDays) * $valor_unitario_cat;
-
-            //     // Guardar qué días seleccionó
-            //     $dias_array = ["lun" => 0, "mar" => 0, "mie" => 0, "jue" => 0, "vie" => 0];
-            //     foreach ($selectedDays as $sd) {
-            //         $dia_key = strtolower(trim($sd));
-            //         if (array_key_exists($dia_key, $dias_array)) $dias_array[$dia_key] = 1;
-            //     }
-            //     $dias_json = json_encode($dias_array);
-            // } else {
-            //     // Inscripción de evento completo
-            //     $total_inscripcion = $valor_unitario_cat;
-            // }
             if ($es_por_dia) {
                 $selectedDays = $request->input('selectedDays', []);
                 if (is_string($selectedDays)) $selectedDays = explode(',', $selectedDays);
@@ -376,7 +376,6 @@ class InscripcionController extends Controller
         // 3. LÓGICA DE EXTRAS: Cursos y Tours (Relación: precios en tabla CategoriaCursoViaje)
         $extras_ids = json_decode($request->input('extras_seleccionados'), true);
         $perfil_id = $request->input('profile');
-
 
         if (!empty($extras_ids) && is_array($extras_ids)) {
             // Traemos los extras pero filtrando la relación 'precios' desde la consulta
@@ -415,12 +414,13 @@ class InscripcionController extends Controller
         return [
             'total' => $total_final,
             'nombres_extras' => $nombres_extras,
+            'descuento_total' => round($descuento_monto, 2),
             'dias_json' => $dias_json,
             'moneda' => $precio_base_obj ? $precio_base_obj->id_moneda : 1
         ];
     }
 
-    private function createFacturacion(Request $request, $persona, $categoria, $total, $nombres_extras)
+    private function createFacturacion(Request $request, $persona, $categoria, $total, $nombres_extras, $descuento = 0)
     {
         // Recalcular moneda si es necesario o pasarla desde calculateTotal
         // Aquí asumimos que usamos la moneda del precio base de la categoría para simplificar
@@ -444,6 +444,7 @@ class InscripcionController extends Controller
         $facturacion->IGV = $IGV;
         $facturacion->sub_total = floatval($total) - $IGV;
         $facturacion->detraccion = 0;
+        $facturacion->descuento  = $descuento;
         $facturacion->total = $total;
 
         $obs_extras = count($nombres_extras) > 0 ? " | Extras: " . implode(', ', $nombres_extras) : "";
@@ -494,6 +495,8 @@ class InscripcionController extends Controller
         $inscripcion->texto_cargo = $request->input('cargo', '');
         $inscripcion->dias = $dias_json;
         $inscripcion->autorizacion_datos = $request->input('auth', false);
+        $idCupon = $request->input('id_cupon');
+        $inscripcion->id_cupon = ($idCupon === 'null' || empty($idCupon)) ? null : $idCupon;
 
         if ($request->hasFile('uploadDocument')) {
             $file = $request->file('uploadDocument');
@@ -514,13 +517,14 @@ class InscripcionController extends Controller
         return $inscripcion;
     }
 
-    private function generateNiubizResponse($persona, $inscripcion, $facturacion)
+    private function generateNiubizResponse($persona, $inscripcion, $facturacion, $descuento = 0)
     {
         try {
             $formNiubiz = app(\App\Http\Controllers\NiubizController::class)->getForm(
                 $persona,
                 $inscripcion,
                 $facturacion,
+                $descuento,
                 url()->previous(),
                 url()->current()
             );
@@ -533,7 +537,8 @@ class InscripcionController extends Controller
             return response()->json([
                 'status' => true,
                 'formulario' => json_decode(base64_decode($formNiubiz->frm)),
-                'total_real' => $facturacion->total
+                'total_real' => $facturacion->total,
+                'descuento' => $descuento
             ]);
         } catch (\Exception $e) {
             Log::error("Error en Niubiz: " . $e->getMessage());
@@ -556,63 +561,63 @@ class InscripcionController extends Controller
 
         $respuesta = app(\App\Http\Controllers\NiubizController::class)->authorization($cuota->respuesta_api, $facturacion->total, $transactiontoken, $order);
 
-        // $respuesta = '{
-        //     "header": {
-        //         "ecoreTransactionUUID": "3746e2a1-19bb-4251-b920-f7d2cc7c7c6e",
-        //         "ecoreTransactionDate": 1749744006879,
-        //         "millis": 958
-        //     },
-        //     "fulfillment": {
-        //         "channel": "web",
-        //         "merchantId": "456879853",
-        //         "terminalId": "00000001",
-        //         "captureType": "manual",
-        //         "countable": true,
-        //         "fastPayment": false,
-        //         "signature": "3746e2a1-19bb-4251-b920-f7d2cc7c7c6e"
-        //     },
-        //     "order": {
-        //         "tokenId": "3624210E49BA4F80A4210E49BA4F80E0",
-        //         "purchaseNumber": "8291",
-        //         "amount": 2200,
-        //         "installment": 0,
-        //         "currency": "USD",
-        //         "authorizedAmount": 2200,
-        //         "authorizationCode": "091800",
-        //         "actionCode": "000",
-        //         "traceNumber": "31645",
-        //         "transactionDate": "250612110006",
-        //         "transactionId": "993211570048581"
-        //     },
-        //     "dataMap": {
-        //         "TERMINAL": "00000001",
-        //         "BRAND_ACTION_CODE": "00",
-        //         "BRAND_HOST_DATE_TIME": "201222141839",
-        //         "TRACE_NUMBER": "31645",
-        //         "CARD_TYPE": "D",
-        //         "ECI_DESCRIPTION": "Transaccion no autenticada pero enviada en canal seguro",
-        //         "SIGNATURE": "3746e2a1-19bb-4251-b920-f7d2cc7c7c6e",
-        //         "CARD": "447411******2240",
-        //         "MERCHANT": "109705108",
-        //         "STATUS": "Authorized",
-        //         "ACTION_DESCRIPTION": "Aprobado y completado con exito",
-        //         "ID_UNICO": "993211570048581",
-        //         "AMOUNT": "1900.0",
-        //         "AUTHORIZATION_CODE": "091800",
-        //         "YAPE_ID": "",
-        //         "CURRENCY": "0604",
-        //         "TRANSACTION_DATE": "250612110006",
-        //         "ACTION_CODE": "000",
-        //         "CVV2_VALIDATION_RESULT": "M",
-        //         "ECI": "07",
-        //         "ID_RESOLUTOR": "420201222142237",
-        //         "BRAND": "visa",
-        //         "ADQUIRENTE": "570002",
-        //         "BRAND_NAME": "VI",
-        //         "PROCESS_CODE": "000000",
-        //         "TRANSACTION_ID": "993211570048581"
-        //     }
-        // }';
+        $respuesta = '{
+            "header": {
+                "ecoreTransactionUUID": "3746e2a1-19bb-4251-b920-f7d2cc7c7c6e",
+                "ecoreTransactionDate": 1749744006879,
+                "millis": 958
+            },
+            "fulfillment": {
+                "channel": "web",
+                "merchantId": "456879853",
+                "terminalId": "00000001",
+                "captureType": "manual",
+                "countable": true,
+                "fastPayment": false,
+                "signature": "3746e2a1-19bb-4251-b920-f7d2cc7c7c6e"
+            },
+            "order": {
+                "tokenId": "3624210E49BA4F80A4210E49BA4F80E0",
+                "purchaseNumber": "8291",
+                "amount": 2200,
+                "installment": 0,
+                "currency": "USD",
+                "authorizedAmount": 2200,
+                "authorizationCode": "091800",
+                "actionCode": "000",
+                "traceNumber": "31645",
+                "transactionDate": "250612110006",
+                "transactionId": "993211570048581"
+            },
+            "dataMap": {
+                "TERMINAL": "00000001",
+                "BRAND_ACTION_CODE": "00",
+                "BRAND_HOST_DATE_TIME": "201222141839",
+                "TRACE_NUMBER": "31645",
+                "CARD_TYPE": "D",
+                "ECI_DESCRIPTION": "Transaccion no autenticada pero enviada en canal seguro",
+                "SIGNATURE": "3746e2a1-19bb-4251-b920-f7d2cc7c7c6e",
+                "CARD": "447411******2240",
+                "MERCHANT": "109705108",
+                "STATUS": "Authorized",
+                "ACTION_DESCRIPTION": "Aprobado y completado con exito",
+                "ID_UNICO": "993211570048581",
+                "AMOUNT": "1900.0",
+                "AUTHORIZATION_CODE": "091800",
+                "YAPE_ID": "",
+                "CURRENCY": "0604",
+                "TRANSACTION_DATE": "250612110006",
+                "ACTION_CODE": "000",
+                "CVV2_VALIDATION_RESULT": "M",
+                "ECI": "07",
+                "ID_RESOLUTOR": "420201222142237",
+                "BRAND": "visa",
+                "ADQUIRENTE": "570002",
+                "BRAND_NAME": "VI",
+                "PROCESS_CODE": "000000",
+                "TRANSACTION_ID": "993211570048581"
+            }
+        }';
 
         $filtered_response = app(\App\Http\Controllers\NiubizController::class)->filterResponse($respuesta);
 
@@ -679,28 +684,28 @@ class InscripcionController extends Controller
             $inscripcion->observacion = "Pagada Niubiz ID: " . $niubiz->id;
             $inscripcion->update();
 
+            // =======================================================
+            if ($inscripcion->id_cupon) {
+                // Buscamos el cupón por ID
+                $cupon = \App\Models\Cupon::find($inscripcion->id_cupon);
+
+                if ($cupon) {
+                    // Aumentamos los usos actuales
+                    $cupon->increment('usos_actuales');
+
+                    // Opcional: Si quieres que el límite de usos disminuya (aunque usualmente se compara usos_actuales vs limite)
+                    // $cupon->decrement('limite_usos');
+
+                    Log::info("Cupón ID {$cupon->id} actualizado. Usos actuales: {$cupon->usos_actuales}");
+
+                    // Opcional: Desactivar cupón si llegó al límite automáticamente
+                    if ($cupon->usos_actuales >= $cupon->limite_usos) {
+                        $cupon->save();
+                    }
+                }
+            }
+
             $persona = Persona::find($inscripcion->id_persona);
-
-            // $service_wmc = app(\App\Http\Controllers\WebServiceController::class)
-            //     ->wsInscripcion_WMC_2026($facturacion, $persona, $inscripcion, $niubiz);
-
-
-            // if (isset($service_wmc->Response) && $service_wmc->Response->Status === true) {
-            //     $inscripcion->qr = (string)$service_wmc->Response->QR;
-            //     // $inscripcion->sie_code = (string)$service_wmc->Response->SieCode;
-            //     $inscripcion->save();
-
-            //     try {
-            //         Mail::to($persona->correo)->send(new \App\Mail\MailInscripcion($inscripcion, $niubiz));
-            //     } catch (\Exception $e) {
-            //         Log::error("Error enviando correo: " . $e->getMessage());
-            //     }
-            // } else {
-            //     // Si llegamos aquí, service_wmc tiene el error 500 o un Status false
-            //     Log::error("ERROR SIE WMC:", (array)$service_wmc);
-            // }
-
-            // Ejecutar el servicio
 
             // dd('LLEGÓ A GENERAR EL SERVICIO WMC', [
             //     'FACTURACION' => $facturacion,
@@ -715,7 +720,9 @@ class InscripcionController extends Controller
             // $service_wmc->Response->Status = false;
             if (isset($service_wmc->Response) && $service_wmc->Response->Status === true) {
                 $inscripcion->qr = (string)$service_wmc->Response->QR;
+                $inscripcion->cupon_viaje  = (string)$service_wmc->Response->Codigo;
                 $inscripcion->ws_status = true; // Campo nuevo
+
             } else {
                 // Si falla el servicio, registramos el error pero no matamos el proceso
                 $inscripcion->ws_status = false;

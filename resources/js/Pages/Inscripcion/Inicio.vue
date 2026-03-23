@@ -34,7 +34,9 @@ const props = defineProps({
     section: String,
     perfil_id: Number,
     autores: Array,
-    course:Number
+    course:Number,
+    cupones:Object
+
 })
 
 
@@ -253,7 +255,8 @@ const confirmarYProcesar = async (extras = []) => {
         });
 
         if (response.data.status && response.data.formulario) {
-            formDataPayment.value = response.data.formulario;
+            // formDataPayment.value = response.data.formulario;
+             formDataPayment.value = response.data
 
             // Avanzamos al paso 4
             activeStep.value = "4";
@@ -459,18 +462,6 @@ watch(activeStep, (newStep) => {
                 <!-- ============= PASOS =============
                  ================================== -->
                 <Stepper v-model:value="activeStep" class="w-full">
-                    <!-- <StepList class="text-black-price bg-degradient">
-                        <Step value="1">Personal Details</Step>
-                        <Step value="2">Billing Information</Step>
-                        <Step value="3">Courses or Tours</Step>
-                        <Step value="4">Payment Process</Step>
-                    </StepList> -->
-
-                    <!-- <StepList class="text-black-price bg-degradient">
-                        <Step v-for="paso in pasosVisibles" :key="paso.value" :value="paso.value">
-                            {{ paso.label }}
-                        </Step>
-                    </StepList> -->
 
                     <StepList class="text-black-price bg-degradient">
                         <Step v-for="paso in pasosVisibles" :key="paso.value" :value="paso.value"
@@ -514,8 +505,8 @@ watch(activeStep, (newStep) => {
                         <StepPanel v-slot="{ activateCallback }" value="2"
                             class="rounded-2xl border-2 border-green-iimp bg-white shadow-wmc">
 
-                            <FormInscription ref="childFormInscription" :data_persona="data_persona" v-if="activeStep === '2'"
-                                :categorias="props.categorias" />
+                            <FormInscription ref="childFormInscription" :data_persona="data_persona" v-if="activeStep === '2'" :cupones="props.cupones"
+                                :categorias="props.categorias"  />
 
                             <div
                                 class="sticky bottom-0 left-0 w-full p-4 md:p-6 bg-white/95 backdrop-blur-md border-t border-gray-200 shadow-[0_-5px_20px_rgba(0,0,0,0.1)] z-[50] flex justify-between gap-3 rounded-b-2xl">
@@ -553,7 +544,7 @@ watch(activeStep, (newStep) => {
                             class="rounded-2xl border-2 border-green-iimp bg-white shadow-wmc">
 
                             <FormPayment ref="childFormPayment" :data_persona="data_persona" v-if="activeStep === '4'"
-                                :formulario="formDataPayment" :categoria_seleccionada="categoria_seleccionada"
+                                :formulario="formDataPayment" :categoria_seleccionada="categoria_seleccionada" :descuento="formDataPayment.descuento"
                                 :extras_seleccionados="extras_para_mostrar" />
 
                             <div

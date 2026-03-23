@@ -6,6 +6,7 @@ const props = defineProps({
     categoria_seleccionada: Object,
     data_persona: Object,
     formulario: Object,
+     vouchers: Object,
     extras_seleccionados: {
         type: Array,
         default: () => []
@@ -16,13 +17,21 @@ const urlParams = new URLSearchParams(window.location.search);
 const esSeccionViajes = computed(() => urlParams.get('section') === 'viajes');
 // Controla si el usuario aceptó los términos para habilitar el botón
 const termsAccepted = ref(false);
-const policiesAccepted = ref(false);
 const procesandoPago = ref(false);
-
 
 const precioInscripcion = computed(() => {
     return props.categoria_seleccionada?.precio_disponible?.valor || '0.00';
 });
+
+const montoDescuento = computed(() => {
+    // Si pasaste la prop :descuento directamente
+    if (props.descuento !== undefined && props.descuento !== null) {
+        return props.descuento;
+    }
+    // Backup: Por si acaso viniera dentro de formulario (aunque con el cambio de arriba ya no es necesario)
+    return props.formulario?.descuento || 0;
+});
+
 
 const mountNiubiz = async (data) => {
     let config = data;
@@ -118,18 +127,11 @@ const mountNiubiz = async (data) => {
     }
 };
 
-const handleBeforeUnload = (event) => {
-    // Tu lógica de validación actual
-    event.preventDefault();
-    event.returnValue = '';
-};
-
 onMounted(() => {
     if (props.formulario) mountNiubiz(props.formulario);
     // Forzamos la limpieza de cualquier alerta que haya quedado de los pasos anteriores
 
 });
-
 
 // Vigilamos si la data del formulario cambia para recargar la pasarela
 watch(() => props.formulario, (newVal) => {
@@ -189,6 +191,15 @@ const scriptData = computed(() => {
                                     USD {{ precioInscripcion || '0.00' }}
                                 </span>
 
+                            </div>
+                            <div v-if="montoDescuento > 0"
+                                class="flex justify-between items-start mb-1 text-sm pl-2 border-l-2 border-green-500 p-2 bg-green-50">
+                                <div class="flex flex-col w-2/3">
+                                    <span class="text-green-700 font-bold italic">Descuento Cupón</span>
+                                </div>
+                                <span class="text-green-700 font-bold text-right w-1/3">
+                                    - USD {{ montoDescuento }}
+                                </span>
                             </div>
 
                             <div v-for="extra in extras_seleccionados" :key="extra.id"
