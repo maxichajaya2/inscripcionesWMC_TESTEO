@@ -89,11 +89,21 @@ const isEditingBilling = ref(false);
 const cuponIdSeleccionado = ref(null);
 let current_price = 0;
 const tipoDocumento = computed(() => page.props.general.tipDocEmp)
+const showInfoModal = ref(false); // Esta ya la tienes
+const modalConfig = ref({ title: '', message: '', icon: '', colorClass: '' });
 
 const days = { 'mie': 'Wednesday', 'jue': 'Thursday', 'vie': 'Friday' };
 const current_days = { 'lun': false, 'mar': false, 'mie': false, 'jue': false, 'vie': false };
 
 const formManualErrors = ref({ reglamento: null, total: null, uploadDocument: null });
+
+
+const showWelcomeBillingModal = ref(false); // Controla el nuevo modal de bienvenida
+const isPeruanoGlobal = computed(() => {
+    const p = props.data_persona?.persona || props.data_persona;
+    return p?.pais == 1 || p?.id_pais == 1 || p?.tipo_doc == 1 || p?.tipo_doc == 2 || p?.nacionalidad?.toLowerCase() === 'peruano';
+});
+
 
 const { defineField, errors, setValues, values, validate } = useForm({
     validationSchema: yup.object({
@@ -116,8 +126,21 @@ const { defineField, errors, setValues, values, validate } = useForm({
                 // Permitimos cualquier longitud alfanumérica, solo validamos que exista
                 return value?.length > 0;
             }),
+
+
         razonSocial: yup.string().required('Business name is required'),
-        direccionEmpresa: yup.string().required('Company address is required'),
+        direccionEmpresa: yup.string()
+            .trim()
+            .required('La dirección de la empresa es obligatoria')
+            .min(5, 'La dirección es demasiado corta')
+            .test('no-garbage', 'Por favor, ingrese una dirección válida', (value) => {
+                if (!value) return false;
+                // Verifica que contenga al menos 3 letras o números
+                // y que no sean solo símbolos repetidos como --- o ***
+                const hasContent = /[a-zA-Z0-9]{3,}/.test(value);
+                const isNotJustSymbols = !/^[ \-*.;,_]+$/.test(value);
+                return hasContent && isNotJustSymbols;
+            }),
         responsable: yup.string().required('Responsible party name is required'),
         correo_facturador: yup.string()
             .email('Invalid email format')
@@ -143,6 +166,22 @@ const [uploadDocument] = defineField('uploadDocument');
 const is_category_fixed = ref(false);
 const urlParams = new URLSearchParams(window.location.search);
 const esSeccionViajes = computed(() => urlParams.get('section') === 'viajes');
+const noAsociadoCupon = computed(() => urlParams.get('profile') === '6');
+
+const MODAL_DATA = {
+    DNI: {
+        title: 'Receipt Information',
+        message: 'By selecting DNI (National ID), an electronic Sales Receipt will be issued in the name of the individual.',
+        icon: 'pi pi-user',
+        colorClass: 'text-blue-600'
+    },
+    RUC: {
+        title: 'Invoice Information',
+        message: 'By selecting RUC (Tax ID), an electronic Commercial Invoice will be issued in the name of the company or legal entity.',
+        icon: 'pi pi-building',
+        colorClass: 'text-purple-600'
+    }
+};
 
 function changeCategory(id, precioRecibido) {
     if (!id) return;
@@ -275,7 +314,6 @@ const validarCuponLocal = async () => {
     }
 };
 
-
 onMounted(() => {
     // Configuraciones iniciales
     tipoDocumentoEmpresa.value = 1;
@@ -308,6 +346,31 @@ onMounted(() => {
         descuentoAplicadoMonto.value = 0;
         empresaCupon.value = null;
         codigoVoucher.value = '';
+    }
+
+    if (isPeruanoGlobal.value) {
+        setTimeout(() => {
+            showWelcomeBillingModal.value = true;
+        }, 800); // Un pequeño delay para que no sea tan brusco tras cargar la página
+    }
+
+    if (!props.saved_values && !props.data_persona?.documento) {
+        tipoDocumentoEmpresa.value = 1;
+    }
+
+    if (props.data_persona && props.data_persona.documentoEmpresa) {
+        setValues({
+            tipoDocumentoEmpresa: props.data_persona.tipoDocumentoEmpresa,
+            documentoEmpresa: props.data_persona.documentoEmpresa,
+            razonSocial: props.data_persona.razonSocial,
+            direccionEmpresa: props.data_persona.direccionEmpresa,
+            responsable: props.data_persona.responsable,
+            correo_facturador: props.data_persona.correo_facturador,
+            selected_categoria: props.data_persona.selected_categoria
+        });
+
+        // Disparamos la lógica visual de la categoría
+        changeCategory(props.data_persona.selected_categoria);
     }
 
 
@@ -376,29 +439,72 @@ watch(documentoEmpresa, (newValue) => {
     }
 });
 
+// watch(tipoDocumentoEmpresa, (newVal, oldVal) => {
+//     // Detectamos si es peruano
+//     const p = props.data_persona?.persona || props.data_persona;
+//     const esPeruano = p?.pais == 1 || p?.id_pais == 1 || p?.tipo_doc == 1 || p?.tipo_doc == 2;
+
+//     console.log("Cambio de doc:", newVal, "¿Es peruano?", esPeruano);
+
+//     // Quitamos la restricción de 'isEditingBilling' para la primera carga si es necesario,
+//     // pero mantenemos la lógica de limpieza
+//     if (oldVal !== undefined) {
+//         setValues({
+//             ...values,
+//             documentoEmpresa: '',
+//             razonSocial: '',
+//             direccionEmpresa: '',
+//             responsable: '',
+//             correo_facturador: ''
+//         });
+
+//         if (esPeruano) {
+//             if (newVal === 1) { // DNI
+//                 modalConfig.value = MODAL_DATA.DNI;
+//                 showInfoModal.value = true;
+//             } else if (newVal === 2) { // RUC
+//                 modalConfig.value = MODAL_DATA.RUC;
+//                 showInfoModal.value = true;
+//             }
+//         }
+//         setTipoDocPago();
+//     }
+// });
+
+// En FormInscription.vue
 watch(tipoDocumentoEmpresa, (newVal, oldVal) => {
-    // Definimos qué IDs son de extranjeros (generalmente todo lo que no es 1 o 2)
-    const documentosExtranjeros = [3, 4, 5]; // Ajusta estos IDs según tu base de datos (Pasaporte, CE, etc.)
+    const p = props.data_persona?.persona || props.data_persona;
+    const esPeruano = p?.pais == 1 || p?.id_pais == 1 || p?.tipo_doc == 1 || p?.tipo_doc == 2;
 
-    // LÓGICA:
-    // Si el valor anterior era extranjero Y el nuevo también es extranjero, NO limpiamos.
-    const ambosSonExtranjeros = documentosExtranjeros.includes(oldVal) && documentosExtranjeros.includes(newVal);
-
-    if (isEditingBilling.value && oldVal !== undefined && !ambosSonExtranjeros) {
-
-        setValues({
-            ...values,
-            documentoEmpresa: '',
-            razonSocial: '',
-            direccionEmpresa: '',
-            responsable: '',
-            correo_facturador: ''
-        });
-
-        setTipoDocPago();
-    } else {
-        // console.log("Cambio entre documentos extranjeros: Se mantiene la información.");
+    // CRÍTICO: Si oldVal es undefined o null, significa que es la carga inicial.
+    // NO debemos limpiar los campos en la carga inicial porque borraríamos el autocompletado.
+    if (oldVal === undefined || oldVal === null) {
+        setTipoDocPago(); // Solo configuramos si es Boleta o Factura
+        return;
     }
+
+    // Si llegamos aquí, es porque el usuario CAMBIÓ el tipo de documento manualmente
+    console.log("Cambio manual de doc:", newVal);
+
+    setValues({
+        ...values,
+        documentoEmpresa: '',
+        razonSocial: '',
+        direccionEmpresa: '',
+        responsable: '',
+        correo_facturador: ''
+    });
+
+    if (esPeruano) {
+        if (newVal === 1) { // DNI
+            modalConfig.value = MODAL_DATA.DNI;
+            showInfoModal.value = true;
+        } else if (newVal === 2) { // RUC
+            modalConfig.value = MODAL_DATA.RUC;
+            showInfoModal.value = true;
+        }
+    }
+    setTipoDocPago();
 });
 
 watch(empresaCupon, () => {
@@ -843,7 +949,7 @@ defineExpose({ getInscripcion });
 
                     <!-- =========== CUPON DE DESCUENTO  ========== -->
                     <!-- ================================= -->
-                    <Card v-if="!esSeccionViajes"
+                    <Card v-if="!esSeccionViajes && noAsociadoCupon"
                         class="mt-6 border border-dashed border-blue-400 bg-blue-50/50 shadow-sm">
                         <template #content>
                             <div class="flex items-start gap-3 mb-4 p-3 bg-white/60 rounded-lg border border-blue-100">
@@ -1043,22 +1149,14 @@ defineExpose({ getInscripcion });
                     </div>
 
                     <div class="flex justify-center md:justify-end px-6 mb-6">
-                        <!-- <Button v-if="!isEditingBilling" icon="pi pi-exclamation-circle"
-                            label="The information is incorrect? Click here to modify"
-                            class="p-button-raised p-button-warning font-bold p-4 shadow-md w-full md:w-auto"
-                            style="background-color: #f59e0b; border-color: #d97706; color: #ffffff;"
-                            @click="enableManualEdit" />
-                        <Button v-else icon="pi pi-check-circle" label="I'm done editing, save changes"
-                            class="p-button-raised p-button-success font-bold p-4 shadow-md w-full md:w-auto"
-                            style="background-color: #10b981; border-color: #059669; color: #ffffff;"
-                            @click="isEditingBilling = false" /> -->
                     </div>
                     <div class="grid gap-6 m-6 md:grid-cols-2">
                         <div class="grid gap-6 md:grid-cols-2">
                             <div class="col-span-3 sm:col-span-1">
                                 <label class="block mb-1">Document Type <span class="text-red-600">*</span></label>
                                 <Select v-model="tipoDocumentoEmpresa" :options="filteredDocTypes" optionLabel="name_en"
-                                    optionValue="id" class="w-full border-green-iimp" @change="setTipoDocPago" />
+                                    optionValue="id" class="w-full border-green-iimp" @change="setTipoDocPago"
+                                    translate="no" />
                                 <small class="text-red-600" v-if="errors.tipoDocumentoEmpresa">{{
                                     errors.tipoDocumentoEmpresa }}</small>
                             </div>
@@ -1100,7 +1198,7 @@ defineExpose({ getInscripcion });
                             <InputText v-model="direccionEmpresa" class="w-full border-green-iimp"
                                 :disabled="esRuc20 || loading_doc" />
                             <small class="text-red-600" v-if="errors.direccionEmpresa">{{ errors.direccionEmpresa
-                            }}</small>
+                                }}</small>
                         </div>
 
                         <div class="grid gap-6 md:grid-cols-2">
@@ -1116,7 +1214,7 @@ defineExpose({ getInscripcion });
                                 <InputText v-model="correo_facturador" class="w-full border-green-iimp"
                                     :disabled="loading_doc" />
                                 <small class="text-red-600" v-if="errors.correo_facturador">{{ errors.correo_facturador
-                                }}</small>
+                                    }}</small>
                             </div>
                         </div>
                     </div>
@@ -1126,6 +1224,78 @@ defineExpose({ getInscripcion });
         </pre>
             </Card>
         </div>
+
+        <!--         MODAL TIPO DOCUMENTO          -->
+        <!-- ======================================== -->
+        <Dialog v-model:visible="showInfoModal" modal header=" " :style="{ width: '25rem' }"
+            :breakpoints="{ '1199px': '75vw', '575px': '90vw' }" class="custom-billing-modal" appendTo="body">
+            <div class="flex flex-col items-center p-2 text-center">
+                <div class="rounded-full w-20 h-20 flex items-center justify-center mb-6 animate-bounce-short"
+                    :class="tipoDocumentoEmpresa === 1 ? 'bg-blue-50 text-blue-500' : 'bg-purple-50 text-purple-500'">
+                    <i :class="modalConfig.icon" style="font-size: 2.5rem"></i>
+                </div>
+
+                <h3 class="text-xl font-black mb-2 uppercase tracking-tight" :class="modalConfig.colorClass">
+                    {{ modalConfig.title }}
+                </h3>
+
+                <p class="text-slate-600 leading-relaxed mb-6 font-medium">
+                    {{ modalConfig.message }}
+                </p>
+
+                <Button label="Entendido"
+                    :class="tipoDocumentoEmpresa === 1 ? '!bg-blue-600 !border-blue-600' : '!bg-purple-600 !border-purple-600'"
+                    class="w-full font-bold py-3 shadow-lg" @click="showInfoModal = false" />
+            </div>
+        </Dialog>
+
+
+        <Dialog v-model:visible="showWelcomeBillingModal" modal header=" " :style="{ width: '30rem' }"
+            :breakpoints="{ '1199px': '75vw', '575px': '95vw' }" class="welcome-billing-modal" appendTo="body">
+
+            <div class="flex flex-col items-center p-4 text-center">
+                <div
+                    class="rounded-full w-20 h-20 bg-orange-50 text-orange-500 flex items-center justify-center mb-6 shadow-sm border border-orange-100">
+                    <i class="pi pi-exclamation-circle" style="font-size: 3rem"></i>
+                </div>
+
+                <h2 class="text-2xl font-black mb-4 text-slate-800 leading-tight uppercase tracking-tight">
+                    Important Billing Notice
+                </h2>
+
+                <p class="text-slate-600 leading-relaxed mb-6 font-medium">
+                    Dear participant, to ensure the correct issuance of your electronic payment documents for the
+                    <span class="text-blue-900 font-bold">World Mining Congress 2026</span>,
+                    please carefully select your billing document type:
+                </p>
+
+                <div class="grid grid-cols-2 gap-4 w-full mb-8">
+                    <div class="p-4 bg-blue-50 rounded-xl border border-blue-100 flex flex-col items-center">
+                        <i class="pi pi-user text-blue-600 mb-2"></i>
+                        <span class="text-xs font-black text-blue-800 uppercase">National ID (DNI)</span>
+                        <span class="text-[10px] text-blue-600 font-bold italic">Sales Receipt Issuance</span>
+                    </div>
+                    <div class="p-4 bg-purple-50 rounded-xl border border-purple-100 flex flex-col items-center">
+                        <i class="pi pi-building text-purple-600 mb-2"></i>
+                        <span class="text-xs font-black text-purple-800 uppercase">Tax ID (RUC)</span>
+                        <span class="text-[10px] text-purple-600 font-bold italic">Commercial Invoice Issuance</span>
+                    </div>
+                </div>
+
+                <div class="bg-slate-50 p-4 rounded-lg mb-8 border-l-4 border-slate-400">
+                    <p class="text-[11px] text-slate-500 text-left leading-tight italic">
+                        * Please note that once the document is issued, any cancellations or changes are subject to
+                        administrative validation. Avoid delays by selecting the correct option according to your
+                        accounting
+                        requirements.
+                    </p>
+                </div>
+
+                <Button label="I understand, continue with registration"
+                    class="w-full !bg-green-iimp !border-green-iimp font-black py-4 shadow-lg hover:scale-105 transition-transform"
+                    @click="showWelcomeBillingModal = false" />
+            </div>
+        </Dialog>
 
     </div>
 

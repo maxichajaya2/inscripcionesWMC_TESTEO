@@ -6,18 +6,39 @@ const props = defineProps({
     categoria_seleccionada: Object,
     data_persona: Object,
     formulario: Object,
-     vouchers: Object,
+    vouchers: Object,
+    tipo_origen: [String, Number],
     extras_seleccionados: {
         type: Array,
         default: () => []
     }
 });
 
+
 const urlParams = new URLSearchParams(window.location.search);
 const esSeccionViajes = computed(() => urlParams.get('section') === 'viajes');
 // Controla si el usuario aceptó los términos para habilitar el botón
 const termsAccepted = ref(false);
 const procesandoPago = ref(false);
+const confirmacionComprobante = ref(false);
+
+
+const esPeruano = computed(() => {
+    return Number(props.tipo_origen) === 1;
+});
+
+const puedePagar = computed(() => {
+    // 1. Siempre debe aceptar términos
+    if (!termsAccepted.value) return false;
+
+    // 2. Si es peruano, el check de comprobante es OBLIGATORIO
+    if (esPeruano.value) {
+        return confirmacionComprobante.value;
+    }
+
+    // 3. Si es extranjero, con los términos basta
+    return true;
+});
 
 const precioInscripcion = computed(() => {
     return props.categoria_seleccionada?.precio_disponible?.valor || '0.00';
@@ -31,7 +52,6 @@ const montoDescuento = computed(() => {
     // Backup: Por si acaso viniera dentro de formulario (aunque con el cambio de arriba ya no es necesario)
     return props.formulario?.descuento || 0;
 });
-
 
 const mountNiubiz = async (data) => {
     let config = data;
@@ -247,7 +267,51 @@ const scriptData = computed(() => {
                             </div>
                         </div>
 
-                        <div class="relative">
+                        <!-- COMPROBANTE DE PAGO -->
+                        <div v-if="esPeruano" class="mb-6 p-4 rounded-xl border-2 transition-all duration-300"
+                            :class="confirmacionComprobante ? 'border-green-500 bg-green-50' : 'border-orange-200 bg-orange-50'">
+
+                            <div class="flex items-center gap-3 mb-3">
+                                <i class="pi text-xl"
+                                    :class="[esFactura ? 'pi-building text-purple-600' : 'pi-user text-blue-600']"></i>
+                                <span class="font-black uppercase text-sm tracking-tight text-slate-800">
+                                    {{ tipoComprobanteTexto }} Confirmation
+                                </span>
+                            </div>
+
+                            <div
+                                class="text-[11px] leading-relaxed text-slate-600 mb-4 text-justify bg-white/50 p-3 rounded-lg border border-orange-100">
+                                <p v-if="esFactura">
+                                    You are requesting a <strong>COMMERCIAL INVOICE</strong> under the name of
+                                    <span class="text-purple-700 font-bold">{{ data_persona?.razonSocial || 'the company' }}</span>
+                                    with Tax ID (RUC)
+                                    <span class="text-purple-700 font-bold">{{ data_persona?.documentoEmpresa }}</span>.
+                                </p>
+                                <p v-else>
+                                    You are requesting a <strong>SALES RECEIPT</strong> under the name of
+                                    <span class="text-blue-700 font-bold">{{ data_persona?.nombres }} {{
+                                        data_persona?.apellido_paterno }}</span>.
+                                </p>
+
+                                <p class="mt-2 text-red-600 font-semibold italic">
+                                    * Note: Once the document is issued, any request for cancellation or change
+                                    (from Receipt to Invoice or vice versa) is subject to review and may take up to 15
+                                    business days. Data accuracy is the sole responsibility of the participant.
+                                </p>
+                            </div>
+
+                            <div class="flex items-start gap-3">
+                                <input type="checkbox" id="check_comprobante" v-model="confirmacionComprobante"
+                                    class="mt-1 w-5 h-5 cursor-pointer accent-green-600" />
+                                <label for="check_comprobante"
+                                    class="text-[11px] text-slate-700 font-bold cursor-pointer select-none">
+                                    I confirm that the billing information is correct and I assume responsibility
+                                    for the issuance of this document.
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- <div class="relative">
                             <div v-if="!termsAccepted" class="absolute inset-0 z-10 cursor-not-allowed"
                                 title="Accept terms to enable payment"></div>
 
@@ -259,8 +323,25 @@ const scriptData = computed(() => {
                                     <span class="text-xs">Loading secure payment button...</span>
                                 </div>
                             </div>
-                        </div>
+                        </div> -->
 
+                        <div class="relative">
+                            <div v-if="!puedePagar" class="absolute inset-0 z-10 cursor-not-allowed"
+                                title="Accept requirements to enable payment"></div>
+
+                            <div id="form_holder"
+                                class="flex justify-center p-4 min-h-[100px] border-2 border-blue-100 bg-blue-50/30 rounded-lg overflow-hidden transition-all duration-300"
+                                :style="{
+                                    opacity: puedePagar ? '1' : '0.4',
+                                    filter: puedePagar ? 'grayscale(0)' : 'grayscale(1)',
+                                    pointerEvents: puedePagar ? 'auto' : 'none'
+                                }">
+                                <div class="flex flex-col items-center text-gray-400 py-4">
+                                    <i class="pi pi-spin pi-spinner mb-2"></i>
+                                    <span class="text-xs">Connecting to secure gateway...</span>
+                                </div>
+                            </div>
+                        </div>
                         <p class="text-[9px] text-center text-gray-400 mt-6 uppercase tracking-widest">
                             Secure payment gateway by Niubiz
                         </p>

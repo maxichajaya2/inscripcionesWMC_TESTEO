@@ -545,7 +545,7 @@ watch(activeStep, (newStep) => {
 
                             <FormPayment ref="childFormPayment" :data_persona="data_persona" v-if="activeStep === '4'"
                                 :formulario="formDataPayment" :categoria_seleccionada="categoria_seleccionada" :descuento="formDataPayment.descuento"
-                                :extras_seleccionados="extras_para_mostrar" />
+                                :extras_seleccionados="extras_para_mostrar" :datos_facturacion="tempResIns?.formInscription" :tipo_origen="tipo_origen" />
 
                             <div
                                 class="sticky bottom-0 left-0 w-full p-4 md:p-6 bg-white/95 backdrop-blur-md border-t border-gray-200 shadow-[0_-5px_20px_rgba(0,0,0,0.1)] z-[50] flex justify-between gap-3 rounded-b-2xl">

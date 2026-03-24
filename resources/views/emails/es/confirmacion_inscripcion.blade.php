@@ -283,45 +283,40 @@
                             </div>
                         </td>
                     </tr>
-                      {{-- CUPON DE VIAJE REPRESENTATIVO --}}
+                    {{-- HOTEL STAY COUPON --}}
                     @if ($inscripcion->cupon_viaje)
                         <tr>
                             <td align="center" style="padding: 30px 20px;">
-                                <!-- Etiqueta de aviso más pequeña -->
                                 <div style="margin-bottom: -12px; position: relative; z-index: 2;">
                                     <span
                                         style="background-color: #001e3d; color: #ffffff; padding: 5px 15px; border-radius: 15px; font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; border: 1.5px solid #f97316;">
-                                        Presentar para el viaje
+                                        Present at Reception
                                     </span>
                                 </div>
 
-                                <!-- Ticket Slim -->
                                 <table width="100%" border="0" cellspacing="0" cellpadding="0"
                                     style="max-width: 340px; filter: drop-shadow(0 10px 20px rgba(0,0,0,0.15));">
                                     <tr>
                                         <td
                                             style="background-color: #ffffff; border: 2px solid #f97316; border-radius: 20px; overflow: hidden;">
 
-                                            <!-- Cabecera Compacta -->
                                             <div
                                                 style="background: linear-gradient(90deg, #f97316 0%, #fb923c 100%); padding: 12px; text-align: center;">
                                                 <h2
                                                     style="color: #ffffff; margin: 0; font-size: 18px; font-weight: 900; letter-spacing: 1px; text-transform: uppercase;">
-                                                    Pase Oficial
+                                                    Courtesy Pass
                                                 </h2>
                                             </div>
 
-                                            <!-- Contenido Central Reducido -->
                                             <div
                                                 style="padding: 20px 20px 10px 20px; text-align: center; background-color: #fffcf9; background-image: radial-gradient(#fed7aa 0.5px, transparent 0.5px); background-size: 8px 8px;">
-                                                <div style="font-size: 40px; margin-bottom: 5px;">✈️</div>
+                                                <div style="font-size: 40px; margin-bottom: 5px;">🧳</div>
                                                 <h3
                                                     style="margin: 0; color: #001e3d; font-size: 20px; font-weight: 900; text-transform: uppercase;">
-                                                    CUPÓN DE VIAJE
+                                                    ACCOMMODATION BENEFIT
                                                 </h3>
                                             </div>
 
-                                            <!-- Divisor Troquelado más bajo -->
                                             <table width="100%" border="0" cellspacing="0" cellpadding="0"
                                                 style="background-color: #fffcf9;">
                                                 <tr>
@@ -339,12 +334,11 @@
                                                 </tr>
                                             </table>
 
-                                            <!-- SECCIÓN DEL CÓDIGO SLIM -->
                                             <div
                                                 style="padding: 15px 25px 25px 25px; background-color: #f8fafc; text-align: center;">
                                                 <p
                                                     style="margin: 0 0 8px 0; color: #94a3b8; font-size: 10px; font-weight: bold; text-transform: uppercase;">
-                                                    Código de Cupón
+                                                    Validation Code
                                                 </p>
                                                 <div
                                                     style="display: inline-block; background-color: #001e3d; color: #ffffff; padding: 8px 18px; border-radius: 6px; font-family: 'Courier New', Courier, monospace; font-size: 18px; font-weight: 800; letter-spacing: 2px;">
@@ -356,28 +350,29 @@
                                 </table>
 
                                 <p style="margin: 15px 0 0 0; font-size: 11px; color: #94a3b8;">
-                                    * Muestre este código al personal encargado.
+                                    * Valid for the event's accommodation/transfer service.
                                 </p>
                             </td>
                         </tr>
                     @endif
                     {{-- QR --}}
-                    @if($inscripcion->qr)
-                    <tr>
-                        <td style="padding: 0 40px 30px 40px; text-align: center;">
-                            <div
-                                style="display: inline-block; padding: 15px; background-color: #ffffff; border: 2px solid #e2e8f0; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
-                                <p
-                                    style="margin: 0 0 10px 0; font-size: 12px; font-weight: bold; color: #64748b; text-transform: uppercase;">
-                                    Entry Pass / QR Code</p>
+                    @if ($inscripcion->qr)
+                        <tr>
+                            <td style="padding: 0 40px 30px 40px; text-align: center;">
+                                <div
+                                    style="display: inline-block; padding: 15px; background-color: #ffffff; border: 2px solid #e2e8f0; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+                                    <p
+                                        style="margin: 0 0 10px 0; font-size: 12px; font-weight: bold; color: #64748b; text-transform: uppercase;">
+                                        Entry Pass / QR Code</p>
 
-                                <img src="{{ $qr_url }}" alt="Access QR Code" width="180" height="180"
-                                    style="display: block; margin: 0 auto;">
-                            </div>
-                            <p style="margin: 15px 0 0 0; font-size: 13px; color: #64748b;">Please present this code at
-                                the registration desk.</p>
-                        </td>
-                    </tr>
+                                    <img src="{{ $qr_url }}" alt="Access QR Code" width="180"
+                                        height="180" style="display: block; margin: 0 auto;">
+                                </div>
+                                <p style="margin: 15px 0 0 0; font-size: 13px; color: #64748b;">Please present this
+                                    code at
+                                    the registration desk.</p>
+                            </td>
+                        </tr>
                     @endif
                     <tr>
                         <td style="padding: 0 40px 40px 40px;">
