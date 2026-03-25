@@ -1082,7 +1082,7 @@ defineExpose({ getInscripcion });
                         </div>
                     </div>
 
-                    <div v-if="tipoDocumentoEmpresa === 1 || tipoDocumentoEmpresa === 2"
+                    <!-- <div v-if="tipoDocumentoEmpresa === 1 || tipoDocumentoEmpresa === 2"
                         class="col-span-2 mb-4 p-3 rounded-lg border flex items-center gap-3 animate-fade-in"
                         :class="tipoDocumentoEmpresa === 1 ? 'bg-blue-50 border-blue-200' : 'bg-purple-50 border-purple-200'">
 
@@ -1112,7 +1112,7 @@ defineExpose({ getInscripcion });
                                 </span>
                             </p>
                         </div>
-                    </div>
+                    </div> -->
 
                 </template>
 

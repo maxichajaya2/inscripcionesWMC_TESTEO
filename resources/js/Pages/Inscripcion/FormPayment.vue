@@ -311,20 +311,6 @@ const scriptData = computed(() => {
                             </div>
                         </div>
 
-                        <!-- <div class="relative">
-                            <div v-if="!termsAccepted" class="absolute inset-0 z-10 cursor-not-allowed"
-                                title="Accept terms to enable payment"></div>
-
-                            <div id="form_holder"
-                                class="flex justify-center p-4 min-h-[100px] border-2 border-blue-100 bg-blue-50/30 rounded-lg overflow-hidden transition-all duration-300"
-                                :style="{ opacity: termsAccepted ? '1' : '0.4', filter: termsAccepted ? 'grayscale(0)' : 'grayscale(1)' }">
-                                <div class="flex flex-col items-center text-gray-400">
-                                    <i class="pi pi-spin pi-spinner mb-2"></i>
-                                    <span class="text-xs">Loading secure payment button...</span>
-                                </div>
-                            </div>
-                        </div> -->
-
                         <div class="relative">
                             <div v-if="!puedePagar" class="absolute inset-0 z-10 cursor-not-allowed"
                                 title="Accept requirements to enable payment"></div>
