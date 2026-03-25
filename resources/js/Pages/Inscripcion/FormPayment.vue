@@ -202,7 +202,7 @@ const scriptData = computed(() => {
                 <template #content>
 
                     <div v-if="formulario">
-
+<!--
                         <div v-if="datos_facturacion" class="mt-4 p-3 bg-gray-900 rounded-lg border border-gray-700">
                             <div class="text-[10px] text-gray-400 uppercase font-bold mb-2 tracking-widest">
                                 Billing Data Debug:
@@ -210,7 +210,7 @@ const scriptData = computed(() => {
                             <pre class="text-[10px] text-green-400 overflow-x-auto font-mono leading-tight">
                         {{ JSON.stringify(datos_facturacion, null, 2) }}
                             </pre>
-                        </div>
+                        </div> -->
                         <div class="mb-4 border-b pb-6 p-4">
                             <div class="flex justify-between items-center py-3 border-b border-gray-100">
                                 <span
