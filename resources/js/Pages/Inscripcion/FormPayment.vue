@@ -8,6 +8,7 @@ const props = defineProps({
     formulario: Object,
     vouchers: Object,
     tipo_origen: [String, Number],
+    datos_facturacion: Object,
     extras_seleccionados: {
         type: Array,
         default: () => []
@@ -38,6 +39,24 @@ const puedePagar = computed(() => {
 
     // 3. Si es extranjero, con los términos basta
     return true;
+});
+
+const esFactura = computed(() => {
+    // 1. Prioridad absoluta al selector del formulario anterior
+    // Si es 2 es Factura, si es 1 (o cualquier otro) es Boleta.
+    const tipoDoc = props.datos_facturacion?.tipoDocumentoEmpresa;
+
+    if (tipoDoc === 2) return true;
+    if (tipoDoc === 1) return false;
+
+    // 2. Backup por longitud (solo si el selector falla o es nulo)
+    // El RUC en Perú siempre tiene 11 dígitos.
+    const documento = props.datos_facturacion?.tipoDocumentoEmpresa?.toString().trim() || "";
+    return documento.length === 11;
+});
+
+const tipoComprobanteTexto = computed(() => {
+    return esFactura.value ? 'Commercial Invoice (Factura)' : 'Sales Receipt (Boleta)';
 });
 
 const precioInscripcion = computed(() => {
@@ -174,14 +193,24 @@ const scriptData = computed(() => {
 </pre> -->
     <div id="FormPaymentFinish" class="w-full">
         <div class="flex flex-col items-center p-6 w-full">
+
             <div class="text-blue-900 font-bold text-center text-2xl mb-6 tracking-wide uppercase">
                 Finalize Registration
             </div>
 
             <Card class="w-full max-w-md shadow-2xl border-t-4 border-blue-600 rounded-xl bg-white overflow-hidden">
                 <template #content>
+
                     <div v-if="formulario">
 
+                        <div v-if="datos_facturacion" class="mt-4 p-3 bg-gray-900 rounded-lg border border-gray-700">
+                            <div class="text-[10px] text-gray-400 uppercase font-bold mb-2 tracking-widest">
+                                Billing Data Debug:
+                            </div>
+                            <pre class="text-[10px] text-green-400 overflow-x-auto font-mono leading-tight">
+                        {{ JSON.stringify(datos_facturacion, null, 2) }}
+                            </pre>
+                        </div>
                         <div class="mb-4 border-b pb-6 p-4">
                             <div class="flex justify-between items-center py-3 border-b border-gray-100">
                                 <span
@@ -283,14 +312,14 @@ const scriptData = computed(() => {
                                 class="text-[11px] leading-relaxed text-slate-600 mb-4 text-justify bg-white/50 p-3 rounded-lg border border-orange-100">
                                 <p v-if="esFactura">
                                     You are requesting a <strong>COMMERCIAL INVOICE</strong> under the name of
-                                    <span class="text-purple-700 font-bold">{{ data_persona?.razonSocial || 'the company' }}</span>
-                                    with Tax ID (RUC)
-                                    <span class="text-purple-700 font-bold">{{ data_persona?.documentoEmpresa }}</span>.
+                                    <span class="text-purple-700 font-bold">{{ datos_facturacion?.razonSocial || 'the company' }}</span>
+                                    with RUC
+                                    <span class="text-purple-700 font-bold">{{ datos_facturacion?.documentoEmpresa
+                                        }}</span>.
                                 </p>
                                 <p v-else>
                                     You are requesting a <strong>SALES RECEIPT</strong> under the name of
-                                    <span class="text-blue-700 font-bold">{{ data_persona?.nombres }} {{
-                                        data_persona?.apellido_paterno }}</span>.
+                                    <span class="text-blue-700 font-bold">{{ datos_facturacion?.razonSocial || 'no encontrado' }} </span>.
                                 </p>
 
                                 <p class="mt-2 text-red-600 font-semibold italic">

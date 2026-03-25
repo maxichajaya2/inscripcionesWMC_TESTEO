@@ -1243,7 +1243,7 @@ defineExpose({ getInscripcion });
                     {{ modalConfig.message }}
                 </p>
 
-                <Button label="Entendido"
+                <Button label="Got it"
                     :class="tipoDocumentoEmpresa === 1 ? '!bg-blue-600 !border-blue-600' : '!bg-purple-600 !border-purple-600'"
                     class="w-full font-bold py-3 shadow-lg" @click="showInfoModal = false" />
             </div>

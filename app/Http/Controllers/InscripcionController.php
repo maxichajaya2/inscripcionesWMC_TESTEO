@@ -552,63 +552,63 @@ class InscripcionController extends Controller
 
         $respuesta = app(\App\Http\Controllers\NiubizController::class)->authorization($cuota->respuesta_api, $facturacion->total, $transactiontoken, $order);
 
-        $respuesta = '{
-            "header": {
-                "ecoreTransactionUUID": "3746e2a1-19bb-4251-b920-f7d2cc7c7c6e",
-                "ecoreTransactionDate": 1749744006879,
-                "millis": 958
-            },
-            "fulfillment": {
-                "channel": "web",
-                "merchantId": "456879853",
-                "terminalId": "00000001",
-                "captureType": "manual",
-                "countable": true,
-                "fastPayment": false,
-                "signature": "3746e2a1-19bb-4251-b920-f7d2cc7c7c6e"
-            },
-            "order": {
-                "tokenId": "3624210E49BA4F80A4210E49BA4F80E0",
-                "purchaseNumber": "8291",
-                "amount": 2200,
-                "installment": 0,
-                "currency": "USD",
-                "authorizedAmount": 2200,
-                "authorizationCode": "091800",
-                "actionCode": "000",
-                "traceNumber": "31645",
-                "transactionDate": "250612110006",
-                "transactionId": "993211570048581"
-            },
-            "dataMap": {
-                "TERMINAL": "00000001",
-                "BRAND_ACTION_CODE": "00",
-                "BRAND_HOST_DATE_TIME": "201222141839",
-                "TRACE_NUMBER": "31645",
-                "CARD_TYPE": "D",
-                "ECI_DESCRIPTION": "Transaccion no autenticada pero enviada en canal seguro",
-                "SIGNATURE": "3746e2a1-19bb-4251-b920-f7d2cc7c7c6e",
-                "CARD": "447411******2240",
-                "MERCHANT": "109705108",
-                "STATUS": "Authorized",
-                "ACTION_DESCRIPTION": "Aprobado y completado con exito",
-                "ID_UNICO": "993211570048581",
-                "AMOUNT": "1900.0",
-                "AUTHORIZATION_CODE": "091800",
-                "YAPE_ID": "",
-                "CURRENCY": "0604",
-                "TRANSACTION_DATE": "250612110006",
-                "ACTION_CODE": "000",
-                "CVV2_VALIDATION_RESULT": "M",
-                "ECI": "07",
-                "ID_RESOLUTOR": "420201222142237",
-                "BRAND": "visa",
-                "ADQUIRENTE": "570002",
-                "BRAND_NAME": "VI",
-                "PROCESS_CODE": "000000",
-                "TRANSACTION_ID": "993211570048581"
-            }
-        }';
+        // $respuesta = '{
+        //     "header": {
+        //         "ecoreTransactionUUID": "3746e2a1-19bb-4251-b920-f7d2cc7c7c6e",
+        //         "ecoreTransactionDate": 1749744006879,
+        //         "millis": 958
+        //     },
+        //     "fulfillment": {
+        //         "channel": "web",
+        //         "merchantId": "456879853",
+        //         "terminalId": "00000001",
+        //         "captureType": "manual",
+        //         "countable": true,
+        //         "fastPayment": false,
+        //         "signature": "3746e2a1-19bb-4251-b920-f7d2cc7c7c6e"
+        //     },
+        //     "order": {
+        //         "tokenId": "3624210E49BA4F80A4210E49BA4F80E0",
+        //         "purchaseNumber": "8291",
+        //         "amount": 2200,
+        //         "installment": 0,
+        //         "currency": "USD",
+        //         "authorizedAmount": 2200,
+        //         "authorizationCode": "091800",
+        //         "actionCode": "000",
+        //         "traceNumber": "31645",
+        //         "transactionDate": "250612110006",
+        //         "transactionId": "993211570048581"
+        //     },
+        //     "dataMap": {
+        //         "TERMINAL": "00000001",
+        //         "BRAND_ACTION_CODE": "00",
+        //         "BRAND_HOST_DATE_TIME": "201222141839",
+        //         "TRACE_NUMBER": "31645",
+        //         "CARD_TYPE": "D",
+        //         "ECI_DESCRIPTION": "Transaccion no autenticada pero enviada en canal seguro",
+        //         "SIGNATURE": "3746e2a1-19bb-4251-b920-f7d2cc7c7c6e",
+        //         "CARD": "447411******2240",
+        //         "MERCHANT": "109705108",
+        //         "STATUS": "Authorized",
+        //         "ACTION_DESCRIPTION": "Aprobado y completado con exito",
+        //         "ID_UNICO": "993211570048581",
+        //         "AMOUNT": "1900.0",
+        //         "AUTHORIZATION_CODE": "091800",
+        //         "YAPE_ID": "",
+        //         "CURRENCY": "0604",
+        //         "TRANSACTION_DATE": "250612110006",
+        //         "ACTION_CODE": "000",
+        //         "CVV2_VALIDATION_RESULT": "M",
+        //         "ECI": "07",
+        //         "ID_RESOLUTOR": "420201222142237",
+        //         "BRAND": "visa",
+        //         "ADQUIRENTE": "570002",
+        //         "BRAND_NAME": "VI",
+        //         "PROCESS_CODE": "000000",
+        //         "TRANSACTION_ID": "993211570048581"
+        //     }
+        // }';
 
         $filtered_response = app(\App\Http\Controllers\NiubizController::class)->filterResponse($respuesta);
 
@@ -675,6 +675,7 @@ class InscripcionController extends Controller
             $inscripcion->observacion = "Pagada Niubiz ID: " . $niubiz->id;
             $inscripcion->update();
 
+            $cupon = null;
             // =======================================================
             if ($inscripcion->id_cupon) {
                 // Buscamos el cupón por ID
@@ -698,14 +699,18 @@ class InscripcionController extends Controller
 
             $persona = Persona::find($inscripcion->id_persona);
 
+
+
             // dd('LLEGÓ A GENERAR EL SERVICIO WMC', [
             //     'FACTURACION' => $facturacion,
             //     'PERSONA' => $persona,
             //     'INSCRIPCION' => $inscripcion,
             //     'NIUBIZ' => $niubiz
             // ]);
+
+
             $service_wmc = app(\App\Http\Controllers\WebServiceController::class)
-                ->wsInscripcion_WMC_2026($facturacion, $persona, $inscripcion, $niubiz);
+                ->wsInscripcion_WMC_2026($facturacion, $persona, $inscripcion, $niubiz,$cupon);
             //  dd($service_wmc);
 
             // $service_wmc->Response->Status = false;
