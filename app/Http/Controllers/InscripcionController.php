@@ -165,7 +165,6 @@ class InscripcionController extends Controller
     public function getForm(Request $request)
     {
         // dd($request->all());
-        // dd($request->all());
         // 1. Validaciones iniciales
         $this->validateRequest($request);
 
@@ -495,6 +494,9 @@ class InscripcionController extends Controller
             $file->move(storage_path('app/public/documents'), $name);
             $inscripcion->document_path = asset('storage/documents/' . $name);
         }
+
+        $inscripcion->id_perfil = $request->input('category');
+
         $inscripcion->save();
 
         // dd('INSCRIPCIÓN CREADA CORRECTAMENTE', [
@@ -710,23 +712,31 @@ class InscripcionController extends Controller
 
 
             $service_wmc = app(\App\Http\Controllers\WebServiceController::class)
-                ->wsInscripcion_WMC_2026($facturacion, $persona, $inscripcion, $niubiz,$cupon);
+                ->wsInscripcion_WMC_2026($facturacion, $persona, $inscripcion, $niubiz, $cupon);
             //  dd($service_wmc);
 
             // $service_wmc->Response->Status = false;
             if (isset($service_wmc->Response) && $service_wmc->Response->Status === true) {
                 $inscripcion->qr = (string)$service_wmc->Response->QR;
-                $inscripcion->cupon_viaje  = (string)$service_wmc->Response->Codigo;
                 $inscripcion->ws_status = true; // Campo nuevo
-
+                if ($inscripcion->id_categoria_inscripcion !== null) {
+                    $inscripcion->cupon_viaje = (string)$service_wmc->Response->Codigo;
+                } else {
+                    $inscripcion->cupon_viaje = null; // Forzamos null en BD para viajes
+                }
             } else {
                 // Si falla el servicio, registramos el error pero no matamos el proceso
                 $inscripcion->ws_status = false;
                 Log::error("ERROR SIE WMC para Inscripcion ID: " . $inscripcion->id, (array)$service_wmc);
             }
 
-            // Guardamos los cambios (ya sea que tenga QR o que solo guardemos el status false)
             $inscripcion->save();
+
+            if ($inscripcion->id_categoria_inscripcion == null) {
+                $inscripcion->id_categoria_inscripcion = $inscripcion->id_perfil;
+            }
+            // Guardamos los cambios (ya sea que tenga QR o que solo guardemos el status false)
+            // $inscripcion->save();
 
             // ENVIAR CORREO SIEMPRE
             try {

@@ -290,7 +290,9 @@ onMounted(() => {
 
                         <div class="flex flex-col">
                             <span class="text-xs font-bold text-blue-600 uppercase tracking-widest mb-1">Category</span>
-                            <span class="text-lg text-gray-800 font-bold">{{ categoria.nombre_en }}</span>
+                            <span class="text-lg text-gray-800 font-bold">
+                                {{ categoria?.nombre_en || 'Short Courses & Technical Visits' }}
+                            </span>
                         </div>
                     </div>
 

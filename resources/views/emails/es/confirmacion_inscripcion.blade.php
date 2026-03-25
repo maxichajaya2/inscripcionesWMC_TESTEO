@@ -8,8 +8,8 @@
     ];
     $dias_seleccionados = [];
 
-    $nombre_cat_es = strtoupper($inscripcion->categoria_inscripcion->nombre_es);
-    $nombre_cat_en = strtoupper($inscripcion->categoria_inscripcion->nombre_en);
+    $nombre_cat_es = strtoupper($inscripcion->categoria_inscripcion->nombre_es ?? 'Short Courses & Technical Visits');
+    $nombre_cat_en = strtoupper($inscripcion->categoria_inscripcion->nombre_en ?? 'Short Courses & Technical Visits');
 
     // Verificamos: 1. Que existan datos de días. 2. Que NO sea estudiante. 3. Que el nombre SI sea de tipo DIA/DAY
     $es_estudiante = str_contains($nombre_cat_en, 'STUDENT') || str_contains($nombre_cat_es, 'ESTUDIANTE');
@@ -284,7 +284,7 @@
                         </td>
                     </tr>
                     {{-- HOTEL STAY COUPON --}}
-                    @if ($inscripcion->cupon_viaje)
+                    @if ($inscripcion->cupon_viaje && !empty($inscripcion->id_categoria_inscripcion))
                         <tr>
                             <td align="center" style="padding: 30px 20px;">
                                 <div style="margin-bottom: -12px; position: relative; z-index: 2;">

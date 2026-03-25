@@ -37,6 +37,7 @@ const props = defineProps({
 
 
 const formDataPayment = ref(null);
+const mostrarModalFacturacion = ref(false);
 const data_persona = ref({});
 const showRequisitosModal = ref(false); // Controla el modal
 const tempResIns = ref(null);
@@ -148,6 +149,7 @@ const goStart = () => {
 // 2. Función que simplemente avanza (se usará en ambos casos)
 const proceedToBilling = () => {
     showConfirmNoExtrasModal.value = false;
+     mostrarModalFacturacion.value = true;
     activeStep.value = "3";
     window.scrollTo({ top: 0, behavior: 'smooth' });
 };
@@ -187,7 +189,10 @@ const confirmarYProcesar = async (extras = []) => {
         if (profileId) {
             payload.append('profile', profileId);
         }
-
+        const categoryId = urlParams.get('category');
+        if (categoryId) {
+            payload.append('category', categoryId);
+        }
         // ==========================================================
         // AGREGA ESTA LÍNEA AQUÍ (CRÍTICO):
         // ==========================================================
@@ -262,22 +267,43 @@ const handleCursosHaciaFacturacion = async () => {
     loading.value = false;
 };
 // NUEVO HANDLER: Del paso 3 (Facturación) al 4 (Pago Final)
+// const handleInscripcionFinal = async () => {
+//     loading.value = true;
+
+//     // Validamos el formulario de Inscripción/Facturación
+//     const resIns = await childFormInscription.value.getInscripcion();
+
+//     if (resIns.validate) {
+//         // Guardamos la data de facturación
+//         tempResIns.value = resIns;
+
+//         // Como ya tenemos los cursos guardados del paso anterior,
+//         // disparamos la función que envía TODO al backend
+//         const idsExtras = childFormTourCourse.value?.extras_seleccionados || [];
+//         await confirmarYProcesar(idsExtras);
+//     }
+
+//     loading.value = false;
+// };
+
 const handleInscripcionFinal = async () => {
     loading.value = true;
-
-    // Validamos el formulario de Inscripción/Facturación
     const resIns = await childFormInscription.value.getInscripcion();
 
+    // IMPRESIÓN 1: Ver qué devuelve el formulario de facturación
+    console.log("🔍 DATOS CAPTURADOS EN FACTURACIÓN:", resIns.formInscription);
+
     if (resIns.validate) {
-        // Guardamos la data de facturación
         tempResIns.value = resIns;
 
-        // Como ya tenemos los cursos guardados del paso anterior,
-        // disparamos la función que envía TODO al backend
+        // IMPRESIÓN 2: Verificar que se guardó en la variable temporal
+        console.log("✅ TEMP_RES_INS ACTUALIZADO:", tempResIns.value);
+
         const idsExtras = childFormTourCourse.value?.extras_seleccionados || [];
         await confirmarYProcesar(idsExtras);
+    } else {
+        console.error("❌ Validación de facturación fallida");
     }
-
     loading.value = false;
 };
 
@@ -384,25 +410,7 @@ watch(activeStep, (newStep) => {
                          ==========================================  -->
                         <StepPanel v-slot="{ activateCallback }" value="1"
                             class="rounded-2xl border-2 border-green-iimp bg-white-price shadow-wmc">
-                            <FormValidacionDoc ref="childFormValidacionDoc" :tipo_origen="tipo_origen"  v-if="activeStep === '1'"/>
-
-                            <!-- <div class="fixed bottom-4 right-4 z-50 md:hidden animate-fade-in-up">
-                                <Button label="Validate" icon="pi pi-arrow-right" iconPos="right"
-                                    class="bg-degradient border-rounded-full" :loading="loading"
-                                    :disabled="childFormValidacionDoc?.esCategoriaDeSocio && childFormValidacionDoc?.hasSearched && !childFormValidacionDoc?.esSocio"
-                                    @click="async () => {
-                                        const isValid = await validate('Documento');
-
-
-                                        if (isValid) {
-                                            if (childFormValidacionDoc?.esCategoriaDeSocio) {
-                                                if (childFormValidacionDoc?.esSocio) activateCallback('2');
-                                            } else {
-                                                activateCallback('2');
-                                            }
-                                        }
-                                    }" />
-                            </div> -->
+                            <FormValidacionDoc ref="childFormValidacionDoc" :tipo_origen="tipo_origen"/>
 
                             <div
                                 class="sticky bottom-0 left-0 w-full p-4 md:p-6 bg-white/95 backdrop-blur-md border-t border-gray-200 shadow-[0_-5px_20px_rgba(0,0,0,0.1)] z-[50] flex justify-end gap-3 rounded-b-2xl">
@@ -455,7 +463,7 @@ watch(activeStep, (newStep) => {
                         <StepPanel v-slot="{ activateCallback }" value="3"
                             class="rounded-2xl border-2 border-green-iimp bg-white shadow-wmc">
 
-                            <FormInscription ref="childFormInscription" :data_persona="data_persona"
+                            <FormInscription ref="childFormInscription" :data_persona="data_persona" :activarModal="mostrarModalFacturacion"
                                 :categorias="props.categorias" />
 
                             <div
@@ -472,9 +480,9 @@ watch(activeStep, (newStep) => {
                         <StepPanel v-slot="{ activateCallback }" value="4"
                             class="rounded-2xl border-2 border-green-iimp bg-white shadow-wmc">
 
-                            <FormPayment ref="childFormPayment" :data_persona="data_persona"
-                                :formulario="formDataPayment" :categoria_seleccionada="categoria_seleccionada"
-                                :extras_seleccionados="extras_para_mostrar" />
+                            <FormPayment ref="childFormPayment" :data_persona="data_persona" :descuento="formDataPayment?.descuento"
+                                :formulario="formDataPayment" :categoria_seleccionada="categoria_seleccionada" :datos_facturacion="tempResIns?.formInscription"
+                                :extras_seleccionados="extras_para_mostrar"  :tipo_origen="tipo_origen" />
 
                             <div
                                 class="sticky bottom-0 left-0 w-full p-4 md:p-6 bg-white/95 backdrop-blur-md border-t border-gray-200 shadow-[0_-5px_20px_rgba(0,0,0,0.1)] z-[50] flex justify-between gap-3 rounded-b-2xl">

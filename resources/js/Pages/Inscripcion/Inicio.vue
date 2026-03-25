@@ -42,6 +42,7 @@ const props = defineProps({
 
 const formDataPayment = ref(null);
 const data_persona = ref({});
+const mostrarModalFacturacion = ref(false);
 const showRequisitosModal = ref(false); // Controla el modal
 const tempResIns = ref(null);
 const isPaying = ref(false);
@@ -122,6 +123,7 @@ const validate = async (value) => {
             if (resDoc.validate) {
                 // Guardamos DNI y TipoDoc aquí para usarlos en el siguiente paso
                 data_persona.value = resDoc.formValidacionDoc;
+                 mostrarModalFacturacion.value = true;
                 loading.value = false;
                 return true;
             }
@@ -289,57 +291,6 @@ const confirmarYProcesar = async (extras = []) => {
     }
 };
 
-
-// const handleCursosHaciaFacturacion = async () => {
-//     loading.value = true;
-
-//     if (childFormTourCourse.value) {
-//         // Validamos primero (por si en sección viajes es obligatorio)
-//         const esValido = childFormTourCourse.value.validarSeleccion();
-//         if (!esValido) {
-//             loading.value = false;
-//             return;
-//         }
-
-//         // Chequeamos si la lista de seleccionados está vacía
-//         const tieneSeleccion = childFormTourCourse.value.extras_seleccionados.length > 0;
-
-//         if (!tieneSeleccion) {
-//             // SI NO TIENE NADA: Mostramos el modal "bonito" de advertencia
-//             showConfirmNoExtrasModal.value = true;
-//             loading.value = false;
-//             return;
-//         }
-
-//         // Si tiene selección, guardamos los objetos para el resumen
-//         extras_para_mostrar.value = childFormTourCourse.value.selectedObjects || [];
-//     }
-
-//     // Si todo está ok y tiene selección, avanzamos directo
-//     proceedToBilling();
-//     loading.value = false;
-// };
-
-
-// const handleInscripcionFinal = async () => {
-//     loading.value = true;
-
-//     // Validamos el formulario de Inscripción/Facturación
-//     const resIns = await childFormInscription.value.getInscripcion();
-
-//     if (resIns.validate) {
-//         // Guardamos la data de facturación
-//         tempResIns.value = resIns;
-
-//         // Como ya tenemos los cursos guardados del paso anterior,
-//         // disparamos la función que envía TODO al backend
-//         const idsExtras = childFormTourCourse.value?.extras_seleccionados || [];
-//         await confirmarYProcesar(idsExtras);
-//     }
-
-//     loading.value = false;
-// };
-
 const handleInscripcionHaciaCursos = async () => {
     loading.value = true;
     const resIns = await childFormInscription.value.getInscripcion();
@@ -474,7 +425,7 @@ watch(activeStep, (newStep) => {
                          ==========================================  -->
                         <StepPanel v-slot="{ activateCallback }" value="1"
                             class="rounded-2xl border-2 border-green-iimp bg-white-price shadow-wmc">
-                            <FormValidacionDoc ref="childFormValidacionDoc" :tipo_origen="tipo_origen" v-if="activeStep === '1'"
+                            <FormValidacionDoc ref="childFormValidacionDoc" :tipo_origen="tipo_origen"
                                 :autores="autores" :perfil_id="props.perfil_id" />
                             <div
                                 class="sticky bottom-0 left-0 w-full p-4 md:p-6 bg-white/95 backdrop-blur-md border-t border-gray-200 shadow-[0_-5px_20px_rgba(0,0,0,0.1)] z-[50] flex justify-end gap-3 rounded-b-2xl">
@@ -505,7 +456,7 @@ watch(activeStep, (newStep) => {
                         <StepPanel v-slot="{ activateCallback }" value="2"
                             class="rounded-2xl border-2 border-green-iimp bg-white shadow-wmc">
 
-                            <FormInscription ref="childFormInscription" :data_persona="data_persona" v-if="activeStep === '2'" :cupones="props.cupones"
+                            <FormInscription ref="childFormInscription" :data_persona="data_persona"  :cupones="props.cupones" :activarModal="mostrarModalFacturacion"
                                 :categorias="props.categorias"  />
 
                             <div
@@ -524,7 +475,7 @@ watch(activeStep, (newStep) => {
                             class="rounded-2xl border-2 border-green-iimp bg-white shadow-wmc">
 
                             <FormTourCourse ref="childFormTourCourse" :data_persona="data_persona"
-                                :adicionales="props.adicionales" :section="sectionUrl" :course="props.course" v-if="activeStep === '3'"   />
+                                :adicionales="props.adicionales" :section="sectionUrl" :course="props.course"   />
 
                             <div
                                 class="sticky bottom-0 left-0 w-full p-4 md:p-6 bg-white/95 backdrop-blur-md border-t border-gray-200 shadow-[0_-5px_20px_rgba(0,0,0,0.1)] z-[50] flex justify-between gap-3 rounded-b-2xl">
@@ -543,8 +494,8 @@ watch(activeStep, (newStep) => {
                         <StepPanel v-slot="{ activateCallback }" value="4"
                             class="rounded-2xl border-2 border-green-iimp bg-white shadow-wmc">
 
-                            <FormPayment ref="childFormPayment" :data_persona="data_persona" v-if="activeStep === '4'"
-                                :formulario="formDataPayment" :categoria_seleccionada="categoria_seleccionada" :descuento="formDataPayment.descuento"
+                            <FormPayment ref="childFormPayment" :data_persona="data_persona"
+                                :formulario="formDataPayment" :categoria_seleccionada="categoria_seleccionada" :descuento="formDataPayment?.descuento"
                                 :extras_seleccionados="extras_para_mostrar" :datos_facturacion="tempResIns?.formInscription" :tipo_origen="tipo_origen" />
 
                             <div

@@ -188,9 +188,7 @@ const scriptData = computed(() => {
 </script>
 
 <template>
-    <!-- <pre class="bg-black text-white p-4 text-xs">
-    {{ extras_seleccionados }}
-</pre> -->
+
     <div id="FormPaymentFinish" class="w-full">
         <div class="flex flex-col items-center p-6 w-full">
 

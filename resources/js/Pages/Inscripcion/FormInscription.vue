@@ -25,7 +25,8 @@ const props = defineProps({
     data_persona: Object,
     categorias: Object,
     saved_values: Object,
-    cupones: Object
+    cupones: Object,
+    activarModal: Boolean,
 });
 
 const toast = useToast();
@@ -70,6 +71,7 @@ const fieldNames = {
 
 const es_socio = ref(false);
 const loading_doc = ref(false);
+const yaMostrado = ref(false);
 const show_days = ref(false);
 const show_document = ref(false);
 const upload_instruction = ref('');
@@ -439,37 +441,7 @@ watch(documentoEmpresa, (newValue) => {
     }
 });
 
-// watch(tipoDocumentoEmpresa, (newVal, oldVal) => {
-//     // Detectamos si es peruano
-//     const p = props.data_persona?.persona || props.data_persona;
-//     const esPeruano = p?.pais == 1 || p?.id_pais == 1 || p?.tipo_doc == 1 || p?.tipo_doc == 2;
 
-//     console.log("Cambio de doc:", newVal, "¿Es peruano?", esPeruano);
-
-//     // Quitamos la restricción de 'isEditingBilling' para la primera carga si es necesario,
-//     // pero mantenemos la lógica de limpieza
-//     if (oldVal !== undefined) {
-//         setValues({
-//             ...values,
-//             documentoEmpresa: '',
-//             razonSocial: '',
-//             direccionEmpresa: '',
-//             responsable: '',
-//             correo_facturador: ''
-//         });
-
-//         if (esPeruano) {
-//             if (newVal === 1) { // DNI
-//                 modalConfig.value = MODAL_DATA.DNI;
-//                 showInfoModal.value = true;
-//             } else if (newVal === 2) { // RUC
-//                 modalConfig.value = MODAL_DATA.RUC;
-//                 showInfoModal.value = true;
-//             }
-//         }
-//         setTipoDocPago();
-//     }
-// });
 
 // En FormInscription.vue
 watch(tipoDocumentoEmpresa, (newVal, oldVal) => {
@@ -512,6 +484,15 @@ watch(empresaCupon, () => {
     mensajeVoucher.value = { texto: '', tipo: '' };
     cuponAplicado.value = false;
     descuentoAplicadoMonto.value = 0;
+});
+
+
+watch(() => props.activarModal, (valor) => {
+    // Si el padre puso la variable en true y no lo hemos mostrado antes
+    if (valor === true && !yaMostrado.value) {
+        showWelcomeBillingModal.value = true;
+        yaMostrado.value = true;
+    }
 });
 
 const getEmpresaData = async () => {
@@ -1198,7 +1179,7 @@ defineExpose({ getInscripcion });
                             <InputText v-model="direccionEmpresa" class="w-full border-green-iimp"
                                 :disabled="esRuc20 || loading_doc" />
                             <small class="text-red-600" v-if="errors.direccionEmpresa">{{ errors.direccionEmpresa
-                                }}</small>
+                            }}</small>
                         </div>
 
                         <div class="grid gap-6 md:grid-cols-2">
@@ -1214,7 +1195,7 @@ defineExpose({ getInscripcion });
                                 <InputText v-model="correo_facturador" class="w-full border-green-iimp"
                                     :disabled="loading_doc" />
                                 <small class="text-red-600" v-if="errors.correo_facturador">{{ errors.correo_facturador
-                                    }}</small>
+                                }}</small>
                             </div>
                         </div>
                     </div>
