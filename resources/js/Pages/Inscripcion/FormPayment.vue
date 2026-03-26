@@ -200,7 +200,7 @@ const scriptData = computed(() => {
                 <template #content>
 
                     <div v-if="formulario">
-<!--
+                        <!--
                         <div v-if="datos_facturacion" class="mt-4 p-3 bg-gray-900 rounded-lg border border-gray-700">
                             <div class="text-[10px] text-gray-400 uppercase font-bold mb-2 tracking-widest">
                                 Billing Data Debug:
@@ -313,7 +313,7 @@ const scriptData = computed(() => {
                                     <span class="text-purple-700 font-bold">{{ datos_facturacion?.razonSocial || 'the company' }}</span>
                                     with RUC
                                     <span class="text-purple-700 font-bold">{{ datos_facturacion?.documentoEmpresa
-                                        }}</span>.
+                                    }}</span>.
                                 </p>
                                 <p v-else>
                                     You are requesting a <strong>SALES RECEIPT</strong> under the name of
@@ -321,9 +321,8 @@ const scriptData = computed(() => {
                                 </p>
 
                                 <p class="mt-2 text-red-600 font-semibold italic">
-                                    * Note: Once the document is issued, any request for cancellation or change
-                                    (from Receipt to Invoice or vice versa) is subject to review and may take up to 15
-                                    business days. Data accuracy is the sole responsibility of the participant.
+                                    Before continuing, please make sure your information is correct. Once the document
+                                    has been issued, no changes or refunds can be made.
                                 </p>
                             </div>
 
