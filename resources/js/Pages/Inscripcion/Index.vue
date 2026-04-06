@@ -129,38 +129,6 @@ const scrollToCategories = () => {
                     </div>
                 </div>
             </div>
-            <!-- <div class="mb-10 w-full max-w-2xl mx-auto">
-                <div class="flex items-center justify-between relative">
-                    <div class="absolute top-1/2 left-0 w-full h-0.5 bg-white/10 -translate-y-1/2 z-0"></div>
-                    <div class="absolute top-1/2 left-0 h-0.5 bg-blue-500 transition-all duration-500 -translate-y-1/2 z-0"
-                        :style="{ width: grupoSeleccionado ? '50%' : '15%' }"></div>
-
-                    <div class="relative z-10 flex flex-col items-center gap-2">
-                        <div class="w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all duration-300"
-                            :class="!macroSeccion ? 'bg-blue-600 text-white shadow-[0_0_15px_rgba(59,130,246,0.5)]' : 'bg-blue-900 text-blue-200'">
-                            1
-                        </div>
-                        <span class="text-[10px] uppercase tracking-tighter font-black text-blue-400">Type</span>
-                    </div>
-
-                    <div class="relative z-10 flex flex-col items-center gap-2">
-                        <div class="w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all duration-300"
-                            :class="macroSeccion && !grupoSeleccionado ? 'bg-blue-600 text-white shadow-[0_0_15px_rgba(59,130,246,0.5)]' : (grupoSeleccionado ? 'bg-blue-900 text-blue-200' : 'bg-gray-800 text-gray-500')">
-                            2
-                        </div>
-                        <span class="text-[10px] uppercase tracking-tighter font-black"
-                            :class="macroSeccion ? 'text-blue-400' : 'text-gray-500'">Profile</span>
-                    </div>
-
-                    <div class="relative z-10 flex flex-col items-center gap-2">
-                        <div
-                            class="w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm bg-gray-800 text-gray-500 transition-all duration-300 border border-white/5">
-                            3
-                        </div>
-                        <span class="text-[10px] uppercase tracking-tighter font-black text-gray-500">Checkout</span>
-                    </div>
-                </div>
-            </div> -->
             <div id="titulo_inicial" class="mb-12 text-left animate-fade-in-down">
                 <h1 class="text-4xl md:text-5xl font-black text-yellow-price tracking-tight mb-2">
                     World Mining Congress <span class="text-white">2026</span>
@@ -177,28 +145,6 @@ const scrollToCategories = () => {
                 <div class="w-full lg:w-5/12 space-y-6">
 
                     <div v-if="!macroSeccion" class="space-y-6 animate-fade-in">
-                        <!-- <button @click="macroSeccion = 'inscripciones'"
-                            class="w-full group relative flex items-center justify-between p-8 bg-white/5 border border-white/10 rounded-3xl backdrop-blur-md transition-all duration-300 hover:border-blue-500 hover:bg-white/10 hover:shadow-[0_0_20px_rgba(59,130,246,0.3)] text-left">
-                            <div class="flex flex-col z-10">
-                                <div class="flex flex-col z-10">
-                                    <span class="text-blue-400 text-xs uppercase tracking-widest font-bold mb-1">
-                                        Register now and get access to shorts courses and technical visits
-                                    </span>
-                                    <h5
-                                        class="text-2xl font-black text-white group-hover:text-blue-200 transition-colors">
-                                        REGISTRATION TO EVENT
-                                    </h5>
-                                    <span class="text-yellow-price text-xs uppercase tracking-widest font-bold mb-1">
-                                        Register as a partcipant, select your category, and complete payment
-                                    </span>
-
-                                </div>
-                            </div>
-                            <div
-                                class="p-4 rounded-2xl bg-white/10 group-hover:bg-blue-600 transition-all duration-300">
-                                <GreenArrowRight class="w-6 h-6 invert brightness-200" />
-                            </div>
-                        </button> -->
 
                         <button @click="macroSeccion = 'inscripciones'"
                             class="w-full group relative flex items-center justify-between p-8 bg-blue-600/10 border-2 border-blue-500/50 rounded-3xl backdrop-blur-xl transition-all duration-500 hover:border-blue-400 hover:bg-blue-600/20 text-left overflow-hidden border-loading-effect glow-intense">

@@ -13,14 +13,17 @@ class Cupon extends Model
     protected $table = 'cupones';
 
     protected $fillable = [
-        'id_empresa',     // integer
-        'codigo',         // character varying(100)
-        'tipo_descuento', // character varying(50)
-        'valor',          // integer
-        'limite_usos',    // integer
-        'usos_actuales',  // integer
-        'fecha_inicio',   // character varying (Considera cambiar a date/timestamp en el futuro)
-        'fecha_fin',      // character varying
-        'is_active',      // boolean (Corregido de isactive a is_active según imagen)
+        'codigo_cupon',
+        'tipo_descuento',
+        'valor',
+        'razon_social',
+        'tipo_documento',
+        'num_documento',
+        'eci_cod',
+        'limite_usos',
+        'usos_actuales',
+        'fecha_inicio',
+        'fecha_fin',
+        'is_active',
     ];
 }
