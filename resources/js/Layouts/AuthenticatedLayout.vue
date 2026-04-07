@@ -71,7 +71,7 @@ const isAsociado = computed(() => authUser.value.roles.includes('asociado'));
 
                 <div v-if="isAdmin" class="pt-6">
                     <p class="text-[10px] font-bold text-blue-300/70 uppercase tracking-widest px-4 mb-3">Administración</p>
-                    <Link :href="route('roles.index')"
+                    <!-- <Link :href="route('roles.index')"
                         class="flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-all"
                         :class="route().current('roles.index') ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/50' : 'text-blue-200 hover:bg-blue-900/50 hover:text-white'">
                         <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -79,7 +79,7 @@ const isAsociado = computed(() => authUser.value.roles.includes('asociado'));
                                 d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
                         </svg>
                         Roles y Permisos
-                    </Link>
+                    </Link> -->
                     <Link :href="route('usuarios.index')"
                         class="flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-all mt-1"
                         :class="route().current('usuarios.index') ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/50' : 'text-blue-200 hover:bg-blue-900/50 hover:text-white'">

@@ -2,49 +2,97 @@
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Head, useForm, router } from '@inertiajs/vue3';
 import { ref, computed, watch } from 'vue';
+import * as yup from 'yup';
 
 const props = defineProps({
     cupones: Array
 });
 
-// --- ESTADOS BÁSICOS ---
+// ==========================================
+// 1. ESTADOS BÁSICOS
+// ==========================================
 const searchQuery = ref('');
 const isModalOpen = ref(false);
+const isDeleteModalOpen = ref(false);
 const editingCupon = ref(null);
+const cuponToDelete = ref(null);
+const showToast = ref(false);
+const toastMessage = ref('');
+const currentPage = ref(1);
+const itemsPerPage = 8;
 
+// ==========================================
+// 2. FORMULARIO (Inertia)
+// ==========================================
 const form = useForm({
     codigo_cupon: '',
     tipo_descuento: 'porcentaje',
-    valor: 0,
+    valor: '',
     razon_social: '',
-    tipo_documento: '6', // 6 es RUC usualmente
+    tipo_documento: '6', // 6 = RUC por defecto para Empresas
     num_documento: '',
     eci_cod: '',
-    limite_usos: 100,
+    limite_usos: '',
     fecha_inicio: '',
     fecha_fin: '',
     is_active: true
 });
 
-// --- ESTADOS PARA ELIMINAR ---
-const isDeleteModalOpen = ref(false);
-const cuponToDelete = ref(null);
+// ==========================================
+// 3. ESQUEMA DE VALIDACIÓN (Yup)
+// ==========================================
+const schema = yup.object({
+    codigo_cupon: yup.string().trim().required('El código del cupón es obligatorio'),
+    tipo_descuento: yup.string().required('El tipo de descuento es obligatorio'),
+    valor: yup.number().typeError('Debe ingresar un monto válido').positive('El valor debe ser mayor a 0').required('El valor del descuento es obligatorio'),
+    razon_social: yup.string().trim().required('La razón social de la empresa es obligatoria'),
+    tipo_documento: yup.string().required('Debe seleccionar un tipo de documento'),
+    num_documento: yup.string().trim()
+        .required('El número de documento es obligatorio')
+        .test('len', 'El RUC debe tener exactamente 11 dígitos', function(val) {
+            if (this.parent.tipo_documento === '6') return val?.length === 11;
+            return val?.length > 0;
+        }),
+    // eci_cod: yup.string().trim().required('El código ECI es obligatorio'),
+    limite_usos: yup.number().typeError('Debe ingresar un número entero').positive('Debe ser al menos 1').required('El límite de usos es obligatorio'),
+    fecha_inicio: yup.string().required('La fecha de inicio es obligatoria'),
+    fecha_fin: yup.string().required('La fecha de fin es obligatoria')
+});
 
-// --- ESTADOS PARA PAGINACIÓN ---
-const currentPage = ref(1);
-const itemsPerPage = 8;
-
-// --- ESTADO PARA TOAST ---
-const toastMessage = ref('');
-const showToast = ref(false);
-
-const displayToast = (message) => {
-    toastMessage.value = message;
-    showToast.value = true;
-    setTimeout(() => showToast.value = false, 3000);
+// ==========================================
+// 4. LÓGICA DE VALIDACIÓN EN TIEMPO REAL
+// ==========================================
+const validateForm = async () => {
+    try {
+        await schema.validate(form.data(), { abortEarly: false });
+        form.clearErrors();
+        return true;
+    } catch (err) {
+        const validationErrors = {};
+        err.inner?.forEach(e => {
+            // Guarda solo el primer error de cada campo
+            if (!validationErrors[e.path]) {
+                validationErrors[e.path] = e.message;
+            }
+        });
+        form.clearErrors();
+        form.setError(validationErrors);
+        return false;
+    }
 };
 
-// --- LÓGICA DE BÚSQUEDA ---
+// Observa el formulario y valida mientras escribes (igual que Vee-Validate)
+watch(
+    () => form.data(),
+    () => {
+        if (isModalOpen.value) validateForm();
+    },
+    { deep: true }
+);
+
+// ==========================================
+// 5. COMPUTADOS (Búsqueda y Paginación)
+// ==========================================
 const filteredCupones = computed(() => {
     const query = searchQuery.value.toLowerCase();
     return props.cupones.filter(cupon =>
@@ -55,7 +103,6 @@ const filteredCupones = computed(() => {
 
 watch(searchQuery, () => { currentPage.value = 1; });
 
-// --- LÓGICA DE PAGINACIÓN ---
 const totalPages = computed(() => Math.ceil(filteredCupones.value.length / itemsPerPage));
 const paginatedCupones = computed(() => {
     const start = (currentPage.value - 1) * itemsPerPage;
@@ -65,21 +112,27 @@ const paginatedCupones = computed(() => {
 const nextPage = () => { if (currentPage.value < totalPages.value) currentPage.value++; };
 const prevPage = () => { if (currentPage.value > 1) currentPage.value--; };
 
-// --- MÉTODOS DE CREAR/EDITAR ---
-// Helper para dar formato a la fecha para el input datetime-local (YYYY-MM-DDTHH:mm)
-const formatDateTime = (dateString) => {
-    if (!dateString) return '';
-    return dateString.replace(' ', 'T').slice(0, 16);
+// ==========================================
+// 6. MÉTODOS Y FUNCIONES
+// ==========================================
+const formatDateTime = (dateString) => dateString ? dateString.replace(' ', 'T').slice(0, 16) : '';
+
+const displayToast = (message) => {
+    toastMessage.value = message;
+    showToast.value = true;
+    setTimeout(() => showToast.value = false, 3000);
 };
 
-const openModal = (cupon = null) => {
+const openModal = async (cupon = null) => {
     editingCupon.value = cupon;
+    form.clearErrors();
+
     if (cupon) {
         form.codigo_cupon = cupon.codigo_cupon;
         form.tipo_descuento = cupon.tipo_descuento;
         form.valor = cupon.valor;
         form.razon_social = cupon.razon_social || '';
-        form.tipo_documento = cupon.tipo_documento || '';
+        form.tipo_documento = cupon.tipo_documento || '6';
         form.num_documento = cupon.num_documento || '';
         form.eci_cod = cupon.eci_cod || '';
         form.limite_usos = cupon.limite_usos;
@@ -88,29 +141,33 @@ const openModal = (cupon = null) => {
         form.is_active = cupon.is_active === 1 || cupon.is_active === true;
     } else {
         form.reset();
-        // Fechas por defecto (hoy y fin de año por ejemplo)
         const hoy = new Date();
         form.fecha_inicio = hoy.toISOString().slice(0, 16);
     }
+
     isModalOpen.value = true;
+
+    // Forzamos la validación "en primera instancia" apenas se abre el modal
+    await validateForm();
 };
 
-const submit = () => {
+const submit = async () => {
+    const isValid = await validateForm();
+    if (!isValid) return; // Si hay errores, detenemos el envío
+
     const action = editingCupon.value ? route('cupones.update', editingCupon.value.id) : route('cupones.store');
     const method = editingCupon.value ? 'put' : 'post';
-    const successMessage = editingCupon.value ? 'Cupón actualizado correctamente.' : 'Nuevo cupón creado con éxito.';
 
     form[method](action, {
         onSuccess: () => {
             isModalOpen.value = false;
-            displayToast(successMessage);
+            displayToast(editingCupon.value ? 'Cupón de empresa actualizado.' : 'Nuevo cupón creado.');
             form.reset();
         },
         preserveScroll: true
     });
 };
 
-// --- MÉTODOS DE ELIMINAR ---
 const confirmDelete = (cupon) => {
     cuponToDelete.value = cupon;
     isDeleteModalOpen.value = true;
@@ -136,10 +193,11 @@ const executeDelete = () => {
     <AuthenticatedLayout>
         <div class="space-y-6">
 
+            <!-- HEADER Y BUSCADOR -->
             <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
                 <div>
-                    <h2 class="font-black text-2xl text-slate-800 tracking-tight">Gestión de Cupones</h2>
-                    <p class="text-sm text-slate-500 mt-1">Administra los descuentos y pases para el congreso.</p>
+                    <h2 class="font-black text-2xl text-slate-800 tracking-tight">Cupones para Empresas</h2>
+                    <p class="text-sm text-slate-500 mt-1">Administra los descuentos asignados a las empresas.</p>
                 </div>
 
                 <div class="flex flex-col sm:flex-row items-center gap-3 w-full md:w-auto">
@@ -156,13 +214,14 @@ const executeDelete = () => {
                 </div>
             </div>
 
+            <!-- TABLA -->
             <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
                 <div class="overflow-x-auto">
                     <table class="min-w-full divide-y divide-slate-100">
                         <thead class="bg-slate-50/80">
                             <tr>
-                                <th class="px-6 py-4 text-left text-[10px] font-black text-slate-500 uppercase tracking-widest">Código y Estado</th>
-                                <th class="px-6 py-4 text-left text-[10px] font-black text-slate-500 uppercase tracking-widest">Empresa / Entidad</th>
+                                <th class="px-6 py-4 text-left text-[10px] font-black text-slate-500 uppercase tracking-widest">Código / Estado</th>
+                                <th class="px-6 py-4 text-left text-[10px] font-black text-slate-500 uppercase tracking-widest">Empresa Asignada</th>
                                 <th class="px-6 py-4 text-left text-[10px] font-black text-slate-500 uppercase tracking-widest">Descuento</th>
                                 <th class="px-6 py-4 text-center text-[10px] font-black text-slate-500 uppercase tracking-widest">Usos</th>
                                 <th class="px-6 py-4 text-right text-[10px] font-black text-slate-500 uppercase tracking-widest">Acciones</th>
@@ -185,11 +244,8 @@ const executeDelete = () => {
                                 </td>
 
                                 <td class="px-6 py-4">
-                                    <div v-if="cupon.razon_social">
-                                        <p class="font-bold text-xs text-slate-700 uppercase">{{ cupon.razon_social }}</p>
-                                        <p class="text-[10px] text-slate-400 font-medium">Doc: {{ cupon.num_documento || 'N/A' }} | ECI: {{ cupon.eci_cod || 'N/A' }}</p>
-                                    </div>
-                                    <span v-else class="text-xs text-slate-400 italic">Global / Sin asignar</span>
+                                    <p class="font-bold text-xs text-slate-700 uppercase">{{ cupon.razon_social }}</p>
+                                    <p class="text-[10px] text-slate-400 font-medium">RUC: {{ cupon.num_documento }} | ECI: {{ cupon.eci_cod }}</p>
                                 </td>
 
                                 <td class="px-6 py-4 whitespace-nowrap">
@@ -233,6 +289,7 @@ const executeDelete = () => {
                     </table>
                 </div>
 
+                <!-- PAGINACIÓN -->
                 <div v-if="filteredCupones.length > 0" class="px-6 py-4 border-t border-slate-100 flex items-center justify-between bg-slate-50/50">
                     <span class="text-xs text-slate-500 font-medium">
                         Mostrando <span class="font-bold text-slate-700">{{ (currentPage - 1) * itemsPerPage + 1 }}</span> a
@@ -249,7 +306,7 @@ const executeDelete = () => {
     </AuthenticatedLayout>
 
     <Teleport to="body">
-
+        <!-- TOAST ALERTS -->
         <Transition enter-active-class="transform ease-out duration-300 transition" enter-from-class="translate-y-2 opacity-0 sm:translate-y-0 sm:translate-x-2" enter-to-class="translate-y-0 opacity-100 sm:translate-x-0" leave-active-class="transition ease-in duration-100" leave-from-class="opacity-100" leave-to-class="opacity-0">
             <div v-if="showToast" class="fixed top-6 right-6 z-[200] max-w-sm w-full bg-slate-900 shadow-2xl rounded-2xl pointer-events-auto flex ring-1 ring-black ring-opacity-5 overflow-hidden">
                 <div class="p-4 flex items-center w-full">
@@ -263,118 +320,129 @@ const executeDelete = () => {
             </div>
         </Transition>
 
+        <!-- MODAL FORMULARIO -->
         <Transition enter-active-class="transition duration-200 ease-out" enter-from-class="opacity-0 scale-95" enter-to-class="opacity-100 scale-100" leave-active-class="transition duration-150 ease-in" leave-from-class="opacity-100 scale-100" leave-to-class="opacity-0 scale-95">
             <div v-if="isModalOpen" class="fixed inset-0 z-[150] overflow-y-auto bg-slate-900/60 backdrop-blur-sm">
                 <div class="flex min-h-full items-center justify-center p-4 py-10">
 
                     <div class="bg-white rounded-3xl shadow-2xl w-full max-w-3xl overflow-hidden relative">
                         <div class="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-                            <h3 class="text-xl font-black text-slate-800 uppercase tracking-tight">{{ editingCupon ? 'Editar Cupón' : 'Crear Nuevo Cupón' }}</h3>
+                            <h3 class="text-xl font-black text-slate-800 uppercase tracking-tight">{{ editingCupon ? 'Editar Cupón de Empresa' : 'Crear Cupón de Empresa' }}</h3>
                             <button @click="isModalOpen = false" class="text-slate-400 hover:text-slate-600 bg-white p-2 rounded-full border border-slate-200 transition-colors">✕</button>
                         </div>
 
                         <form @submit.prevent="submit" class="p-6 space-y-6">
 
+                            <!-- SECCIÓN: DETALLES DEL DESCUENTO -->
                             <div>
                                 <h4 class="text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2 mb-4">Detalles del Descuento</h4>
                                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+
                                     <div class="md:col-span-1">
-                                        <label class="block text-xs font-bold text-slate-700 mb-1">Código del Cupón</label>
-                                        <input v-model="form.codigo_cupon" type="text" placeholder="Ej: MINEX-2026" class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-4 focus:ring-2 focus:ring-indigo-500 outline-none text-sm text-slate-700 font-bold uppercase" required />
-                                        <div v-if="form.errors.codigo_cupon" class="text-red-500 text-[10px] mt-1">{{ form.errors.codigo_cupon }}</div>
+                                        <label class="block text-xs font-bold text-slate-700 mb-1 uppercase">Código <span class="text-red-500">*</span></label>
+                                        <input v-model="form.codigo_cupon" type="text" placeholder="Ej: MINEX-2026" :class="{'border-red-500 ring-2 ring-red-100': form.errors.codigo_cupon}" class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-4 focus:ring-2 focus:ring-indigo-500 outline-none text-sm text-slate-700 font-bold uppercase" />
+                                        <span v-if="form.errors.codigo_cupon" class="block text-red-500 text-[10px] mt-1 font-bold">{{ form.errors.codigo_cupon }}</span>
                                     </div>
 
                                     <div>
-                                        <label class="block text-xs font-bold text-slate-700 mb-1">Tipo de Descuento</label>
-                                        <select v-model="form.tipo_descuento" class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-4 focus:ring-2 focus:ring-indigo-500 outline-none text-sm text-slate-700" required>
+                                        <label class="block text-xs font-bold text-slate-700 mb-1 uppercase">Tipo <span class="text-red-500">*</span></label>
+                                        <select v-model="form.tipo_descuento" :class="{'border-red-500': form.errors.tipo_descuento}" class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-4 outline-none text-sm font-medium">
                                             <option value="porcentaje">Porcentaje (%)</option>
                                             <option value="monto">Monto Fijo ($)</option>
                                         </select>
+                                        <span v-if="form.errors.tipo_descuento" class="block text-red-500 text-[10px] mt-1 font-bold">{{ form.errors.tipo_descuento }}</span>
                                     </div>
 
                                     <div>
-                                        <label class="block text-xs font-bold text-slate-700 mb-1">Valor del Descuento</label>
-                                        <input v-model="form.valor" type="number" min="1" class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-4 focus:ring-2 focus:ring-indigo-500 outline-none text-sm text-slate-700 font-bold" required />
-                                        <div v-if="form.errors.valor" class="text-red-500 text-[10px] mt-1">{{ form.errors.valor }}</div>
+                                        <label class="block text-xs font-bold text-slate-700 mb-1 uppercase">Valor <span class="text-red-500">*</span></label>
+                                        <input v-model="form.valor" type="number" step="0.01" :class="{'border-red-500': form.errors.valor}" class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-4 outline-none text-sm font-bold" />
+                                        <span v-if="form.errors.valor" class="block text-red-500 text-[10px] mt-1 font-bold">{{ form.errors.valor }}</span>
                                     </div>
+
                                 </div>
                             </div>
 
+                            <!-- SECCIÓN: DATOS DE LA EMPRESA -->
                             <div>
-                                <h4 class="text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2 mb-4">Datos de Empresa / Entidad (Opcional)</h4>
+                                <h4 class="text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2 mb-4">Datos de la Empresa</h4>
                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+
                                     <div class="md:col-span-2">
-                                        <label class="block text-xs font-bold text-slate-700 mb-1">Razón Social</label>
-                                        <input v-model="form.razon_social" type="text" class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-4 focus:ring-2 focus:ring-indigo-500 outline-none text-sm text-slate-700 uppercase" />
+                                        <label class="block text-xs font-bold text-slate-700 mb-1 uppercase">Razón Social <span class="text-red-500">*</span></label>
+                                        <input v-model="form.razon_social" type="text" :class="{'border-red-500': form.errors.razon_social}" class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-4 outline-none text-sm uppercase" />
+                                        <span v-if="form.errors.razon_social" class="block text-red-500 text-[10px] mt-1 font-bold">{{ form.errors.razon_social }}</span>
                                     </div>
 
                                     <div>
-                                        <label class="block text-xs font-bold text-slate-700 mb-1">Tipo Documento</label>
-                                        <select v-model="form.tipo_documento" class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-4 focus:ring-2 focus:ring-indigo-500 outline-none text-sm text-slate-700">
+                                        <label class="block text-xs font-bold text-slate-700 mb-1 uppercase">Tipo Doc. <span class="text-red-500">*</span></label>
+                                        <select v-model="form.tipo_documento" :class="{'border-red-500': form.errors.tipo_documento}" class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-4 outline-none text-sm font-medium">
                                             <option value="6">RUC (6)</option>
-                                            <option value="1">DNI (1)</option>
-                                            <option value="4">CE (4)</option>
-                                            <option value="">Otro</option>
                                         </select>
+                                        <span v-if="form.errors.tipo_documento" class="block text-red-500 text-[10px] mt-1 font-bold">{{ form.errors.tipo_documento }}</span>
                                     </div>
 
                                     <div>
-                                        <label class="block text-xs font-bold text-slate-700 mb-1">Nº Documento</label>
-                                        <input v-model="form.num_documento" type="text" class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-4 focus:ring-2 focus:ring-indigo-500 outline-none text-sm text-slate-700" />
+                                        <label class="block text-xs font-bold text-slate-700 mb-1 uppercase">Nº Documento <span class="text-red-500">*</span></label>
+                                        <input v-model="form.num_documento" type="text" :class="{'border-red-500': form.errors.num_documento}" class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-4 outline-none text-sm font-bold" />
+                                        <span v-if="form.errors.num_documento" class="block text-red-500 text-[10px] mt-1 font-bold">{{ form.errors.num_documento }}</span>
                                     </div>
 
                                     <div class="md:col-span-2">
-                                        <label class="block text-xs font-bold text-slate-700 mb-1">Código ECI</label>
-                                        <input v-model="form.eci_cod" type="text" class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-4 focus:ring-2 focus:ring-indigo-500 outline-none text-sm text-slate-700" />
+                                        <label class="block text-xs font-bold text-slate-700 mb-1 uppercase">Código ECI <span class="text-red-500">*</span></label>
+                                        <input v-model="form.eci_cod" type="text" :class="{'border-red-500': form.errors.eci_cod}" class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-4 outline-none text-sm font-bold" />
+                                        <span v-if="form.errors.eci_cod" class="block text-red-500 text-[10px] mt-1 font-bold">{{ form.errors.eci_cod }}</span>
                                     </div>
+
                                 </div>
                             </div>
 
+                            <!-- SECCIÓN: LÍMITES Y VIGENCIA -->
                             <div>
                                 <h4 class="text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2 mb-4">Límites y Vigencia</h4>
                                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 
                                     <div class="md:col-span-2 grid grid-cols-2 gap-4">
                                         <div>
-                                            <label class="block text-xs font-bold text-slate-700 mb-1">Límite de Usos Totales</label>
-                                            <input v-model="form.limite_usos" type="number" min="1" class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-4 focus:ring-2 focus:ring-indigo-500 outline-none text-sm text-slate-700" required />
+                                            <label class="block text-xs font-bold text-slate-700 mb-1 uppercase">Usos Permitidos <span class="text-red-500">*</span></label>
+                                            <input v-model="form.limite_usos" type="number" min="1" :class="{'border-red-500': form.errors.limite_usos}" class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-4 outline-none text-sm font-bold" />
+                                            <span v-if="form.errors.limite_usos" class="block text-red-500 text-[10px] mt-1 font-bold">{{ form.errors.limite_usos }}</span>
                                         </div>
-
-                                        <div class="flex flex-col justify-center pt-5">
+                                        <div class="flex items-center pt-5">
                                             <label class="flex items-center gap-3 cursor-pointer">
                                                 <input type="checkbox" v-model="form.is_active" class="w-5 h-5 rounded border-slate-300 text-green-600 focus:ring-green-500" />
-                                                <span class="text-sm font-bold text-slate-700">Cupón Activo</span>
+                                                <span class="text-sm font-bold text-slate-700 uppercase">Habilitar Cupón</span>
                                             </label>
                                         </div>
                                     </div>
 
                                     <div>
-                                        <label class="block text-xs font-bold text-slate-700 mb-1">Fecha de Inicio</label>
-                                        <input v-model="form.fecha_inicio" type="datetime-local" class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-4 focus:ring-2 focus:ring-indigo-500 outline-none text-sm text-slate-700" required />
+                                        <label class="block text-xs font-bold text-slate-700 mb-1 uppercase">Inicio <span class="text-red-500">*</span></label>
+                                        <input v-model="form.fecha_inicio" type="datetime-local" :class="{'border-red-500': form.errors.fecha_inicio}" class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-4 outline-none text-sm font-medium" />
+                                        <span v-if="form.errors.fecha_inicio" class="block text-red-500 text-[10px] mt-1 font-bold">{{ form.errors.fecha_inicio }}</span>
                                     </div>
 
                                     <div>
-                                        <label class="block text-xs font-bold text-slate-700 mb-1">Fecha de Fin</label>
-                                        <input v-model="form.fecha_fin" type="datetime-local" class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-4 focus:ring-2 focus:ring-indigo-500 outline-none text-sm text-slate-700" required />
-                                        <div v-if="form.errors.fecha_fin" class="text-red-500 text-[10px] mt-1">{{ form.errors.fecha_fin }}</div>
+                                        <label class="block text-xs font-bold text-slate-700 mb-1 uppercase">Fin <span class="text-red-500">*</span></label>
+                                        <input v-model="form.fecha_fin" type="datetime-local" :class="{'border-red-500': form.errors.fecha_fin}" class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-4 outline-none text-sm font-medium" />
+                                        <span v-if="form.errors.fecha_fin" class="block text-red-500 text-[10px] mt-1 font-bold">{{ form.errors.fecha_fin }}</span>
                                     </div>
 
                                 </div>
                             </div>
 
                             <div class="flex justify-end gap-3 pt-4 border-t border-slate-100">
-                                <button type="button" @click="isModalOpen = false" class="px-6 py-2.5 text-sm font-bold text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors">Cancelar</button>
-                                <button type="submit" :disabled="form.processing" class="px-6 py-2.5 text-sm font-bold text-white bg-indigo-600 rounded-xl shadow-lg hover:bg-indigo-700 transition-colors disabled:opacity-50">
-                                    {{ editingCupon ? 'Guardar Cambios' : 'Crear Cupón' }}
+                                <button type="button" @click="isModalOpen = false" class="px-6 py-2.5 text-sm font-bold text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors uppercase">Cancelar</button>
+                                <button type="submit" :disabled="form.processing" class="px-6 py-2.5 text-sm font-bold text-white bg-indigo-600 rounded-xl shadow-lg hover:bg-indigo-700 transition-colors disabled:opacity-50 uppercase">
+                                    {{ editingCupon ? 'Guardar Cambios' : 'Confirmar Cupón' }}
                                 </button>
                             </div>
                         </form>
-
                     </div>
                 </div>
             </div>
         </Transition>
 
+        <!-- MODAL ELIMINAR -->
         <Transition enter-active-class="transition duration-200 ease-out" enter-from-class="opacity-0 scale-95" enter-to-class="opacity-100 scale-100" leave-active-class="transition duration-150 ease-in" leave-from-class="opacity-100 scale-100" leave-to-class="opacity-0 scale-95">
             <div v-if="isDeleteModalOpen" class="fixed inset-0 z-[150] overflow-y-auto bg-slate-900/60 backdrop-blur-sm">
                 <div class="flex min-h-full items-center justify-center p-4">
@@ -382,19 +450,18 @@ const executeDelete = () => {
                         <div class="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
                             <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
                         </div>
-                        <h3 class="text-xl font-black text-slate-800 mb-2">¿Eliminar Cupón?</h3>
+                        <h3 class="text-xl font-black text-slate-800 mb-2 uppercase">¿Eliminar Cupón?</h3>
                         <p class="text-sm text-slate-500 mb-6">
                             Vas a eliminar el cupón <span class="font-bold text-slate-800 tracking-tight">{{ cuponToDelete?.codigo_cupon }}</span>. Esta acción no se puede deshacer.
                         </p>
                         <div class="flex gap-3">
-                            <button @click="isDeleteModalOpen = false" class="flex-1 py-3 text-sm font-bold text-slate-600 bg-slate-100 rounded-xl hover:bg-slate-200 transition-colors">Cancelar</button>
-                            <button @click="executeDelete" class="flex-1 py-3 text-sm font-bold text-white bg-red-600 rounded-xl shadow-lg hover:bg-red-700 transition-colors">Sí, Eliminar</button>
+                            <button @click="isDeleteModalOpen = false" class="flex-1 py-3 text-sm font-bold text-slate-600 bg-slate-100 rounded-xl hover:bg-slate-200 transition-colors uppercase">Cancelar</button>
+                            <button @click="executeDelete" class="flex-1 py-3 text-sm font-bold text-white bg-red-600 rounded-xl shadow-lg hover:bg-red-700 transition-colors uppercase">Eliminar</button>
                         </div>
                     </div>
                 </div>
             </div>
         </Transition>
-
     </Teleport>
 </template>
 
