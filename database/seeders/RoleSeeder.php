@@ -3,7 +3,6 @@
 namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
-// IMPORTANTE: Asegúrate de usar los modelos de Spatie si no creaste el personalizado
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\Models\Permission;
 use App\Models\User;
@@ -14,25 +13,22 @@ class RoleSeeder extends Seeder
 {
     public function run(): void
     {
-        // 1. LIMPIEZA INICIAL en pgsql_second
-        // Usamos la conexión explícita para los truncates y deletes
+        // 1. LIMPIEZA INICIAL
         DB::connection('pgsql_second')->statement('SET CONSTRAINTS ALL DEFERRED');
 
+        // Limpieza de tablas pivote
         DB::connection('pgsql_second')->table('model_has_permissions')->delete();
         DB::connection('pgsql_second')->table('model_has_roles')->delete();
         DB::connection('pgsql_second')->table('role_has_permissions')->delete();
 
-        // Forzamos a los modelos de Spatie a usar la segunda conexión para borrar
-        Permission::on('pgsql_second')->query()->delete();
-        Role::on('pgsql_second')->query()->delete();
+        // Limpieza de tablas principales (Sin el ->query())
+        Permission::on('pgsql_second')->delete();
+        Role::on('pgsql_second')->delete();
 
-        // Usuarios (Asumimos que están en la DB principal o donde indique el modelo User)
-        User::whereIn('email', ['admin@wmc.com', 'asociado@wmc.com', 'user@wmc.com'])->delete();
-
-        // 2. Limpiar caché de Spatie
+        // Limpiar caché de Spatie
         app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
 
-        // 3. Definir Permisos (Usando la conexión secundaria)
+        // 2. DEFINIR PERMISOS
         $permisos = [
             'ver dashboard admin',
             'gestionar usuarios',
@@ -42,13 +38,11 @@ class RoleSeeder extends Seeder
         ];
 
         foreach ($permisos as $permiso) {
-            // Usamos el método on() para crear en la DB secundaria
             Permission::on('pgsql_second')->create(['name' => $permiso, 'guard_name' => 'web']);
         }
 
-        // 4. Crear Roles y Asignar Permisos (Usando la conexión secundaria)
+        // 3. CREAR ROLES Y ASIGNAR PERMISOS
         $roleAdmin = Role::on('pgsql_second')->create(['name' => 'admin', 'guard_name' => 'web']);
-        // Traemos todos los permisos de la segunda DB para asignarlos
         $roleAdmin->givePermissionTo(Permission::on('pgsql_second')->all());
 
         $roleAsociado = Role::on('pgsql_second')->create(['name' => 'asociado', 'guard_name' => 'web']);
@@ -57,9 +51,8 @@ class RoleSeeder extends Seeder
         $roleParticipante = Role::on('pgsql_second')->create(['name' => 'participante', 'guard_name' => 'web']);
         $roleParticipante->givePermissionTo(Permission::on('pgsql_second')->where('name', 'acceso participante')->first());
 
-        // 5. CREAR USUARIOS DE PRUEBA
-        // Nota: El método assignRole funcionará siempre y cuando el modelo Role
-        // esté configurado para apuntar a la DB correcta o estemos pasando el objeto correcto.
+        // 4. CREAR USUARIOS (Opcional - Revisa si los quieres borrar antes)
+        User::whereIn('email', ['admin@wmc.com', 'asociado@wmc.com', 'user@wmc.com'])->delete();
 
         User::create([
             'name' => 'Administrador WMC',
@@ -79,6 +72,6 @@ class RoleSeeder extends Seeder
             'password' => Hash::make('user123'),
         ])->assignRole($roleParticipante);
 
-        $this->command->info('Tablas de pgsql_second limpiadas y cuentas creadas correctamente.');
+        $this->command->info('Seed completado con éxito en pgsql_second.');
     }
 }
