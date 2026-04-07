@@ -4,19 +4,19 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
-use App\Models\Role;
+use App\Models\Role; // Tu modelo personalizado con $connection = 'pgsql_second'
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules;
-// use Spatie\Permission\Models\Role;
 
 class UserController extends Controller
 {
     public function index()
     {
+        // Cargamos usuarios de DB1 y Roles de DB2 (via modelo Role)
         $usuarios = User::with('roles')->latest()->get();
         $roles = Role::all();
-        // Verifica que los usuarios se estén cargando correctamente con sus roles
+
         return inertia('Admin/Usuarios/Index', [
             'usuarios' => $usuarios,
             'roles' => $roles
@@ -24,35 +24,34 @@ class UserController extends Controller
     }
 
     public function store(Request $request)
-{
-    // 1. La validación DEBE ser lo primero.
-    // Laravel automáticamente enviará un error 422 si el email ya existe.
-    $request->validate([
-        'name'     => 'required|string|max:255',
-        'email'    => 'required|string|email|max:255|unique:users,email',
-        'password' => ['required', 'confirmed', Rules\Password::defaults()],
-        'role'     => 'required|string|exists:roles,name',
-    ], [
-        'email.unique' => 'Este correo electrónico ya está registrado en el sistema.',
-    ]);
-
-    try {
-        $user = User::create([
-            'name'     => $request->name,
-            'email'    => $request->email,
-            'password' => Hash::make($request->password),
+    {
+        $request->validate([
+            'name'     => 'required|string|max:255',
+            'email'    => 'required|string|email|max:255|unique:users,email',
+            'password' => ['required', 'confirmed', Rules\Password::defaults()],
+            'role'     => 'required|string|exists:pgsql_second.roles,name', // <--- FIX
+        ], [
+            'email.unique' => 'Este correo electrónico ya está registrado en el sistema.',
         ]);
 
-        $user->assignRole($request->role);
-        return redirect()->back();
+        try {
+            $user = User::create([
+                'name'     => $request->name,
+                'email'    => $request->email,
+                'password' => Hash::make($request->password),
+            ]);
 
-    } catch (\Illuminate\Database\QueryException $e) {
-        // Si falló la unicidad a nivel de SQL (segunda capa de seguridad)
-        return redirect()->back()->withErrors([
-            'email' => 'El correo ya existe en nuestra base de datos.'
-        ]);
+            // assignRole usará getRoleConnection() del modelo User para ir a pgsql_second
+            $user->assignRole($request->role);
+
+            return redirect()->back();
+
+        } catch (\Illuminate\Database\QueryException $e) {
+            return redirect()->back()->withErrors([
+                'email' => 'El correo ya existe en nuestra base de datos.'
+            ]);
+        }
     }
-}
 
     public function update(Request $request, User $usuario)
     {
@@ -60,7 +59,7 @@ class UserController extends Controller
             'name'     => 'required|string|max:255',
             'email'    => 'required|string|email|max:255|unique:users,email,' . $usuario->id,
             'password' => ['nullable', 'confirmed', Rules\Password::defaults()],
-            'role'     => 'required|string|exists:roles,name', // Validamos 'role'
+            'role'     => 'required|string|exists:pgsql_second.roles,name', // <--- FIX
         ]);
 
         $usuario->update([
@@ -74,7 +73,7 @@ class UserController extends Controller
             ]);
         }
 
-        // syncRoles elimina los anteriores y deja solo el nuevo enviado en el string/array
+        // Sincroniza en la conexión secundaria
         $usuario->syncRoles([$request->role]);
 
         return redirect()->back();
