@@ -16,6 +16,8 @@ class UserController extends Controller
         $usuarios = User::with('roles')->latest()->get();
         $roles = Role::all();
 
+        dd($roles); // Verifica que los roles se estén cargando correctamente
+        dd($usuarios); // Verifica que los usuarios se estén cargando correctamente con sus roles
         // Verifica que los usuarios se estén cargando correctamente con sus roles
         return inertia('Admin/Usuarios/Index', [
             'usuarios' => $usuarios,
