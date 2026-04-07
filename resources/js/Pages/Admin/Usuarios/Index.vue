@@ -345,7 +345,7 @@ const executeDelete = () => {
                                     <!-- SELECT DE ROL ÚNICO -->
                                     <div>
                                         <label class="block text-xs font-bold text-slate-700 mb-1 uppercase">Rol Asignado <span class="text-red-500">*</span></label>
-                                        <select v-model="form.role" :class="{'border-red-500': form.errors.role}" class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-4 outline-none text-sm font-bold text-indigo-600">
+                                        <select v-model="form.role" :class="{'border-red-500': form.errors.role}" translate="no" class="w-full bg-slate-50 border border-slate-200 rounded-xl py-2.5 px-4 outline-none text-sm font-bold text-indigo-600">
                                             <option value="" disabled>Seleccione un rol...</option>
                                             <option v-for="rol in roles" :key="rol.id" :value="rol.name">{{ rol.name }}</option>
                                         </select>
