@@ -57,30 +57,37 @@ class UserController extends Controller
 }
 
     public function update(Request $request, User $usuario)
-    {
-        $request->validate([
-            'name'     => 'required|string|max:255',
-            'email'    => 'required|string|email|max:255|unique:users,email,' . $usuario->id,
-            'password' => ['nullable', 'confirmed', Rules\Password::defaults()],
-            'role'     => 'required|string|exists:pgsql_second.roles,name', // <--- FIX
-        ]);
+{
+    $request->validate([
+        'name'     => 'required|string|max:255',
+        'email'    => 'required|string|email|max:255|unique:users,email,' . $usuario->id,
+        'password' => ['nullable', 'confirmed', Rules\Password::defaults()],
+        'role'     => 'required|string|exists:pgsql_second.roles,name',
+    ]);
 
+    $usuario->update([
+        'name'  => $request->name,
+        'email' => $request->email,
+    ]);
+
+    if ($request->filled('password')) {
         $usuario->update([
-            'name'  => $request->name,
-            'email' => $request->email,
+            'password' => Hash::make($request->password),
         ]);
-
-        if ($request->filled('password')) {
-            $usuario->update([
-                'password' => Hash::make($request->password),
-            ]);
-        }
-
-        // Sincroniza en la conexión secundaria
-        $usuario->syncRoles([$request->role]);
-
-        return redirect()->back();
     }
+
+    // --- EL FIX PARA EL UPDATE ---
+    // 1. Buscamos el objeto Rol explícitamente en pgsql_second
+    $role = Role::where('name', $request->role)->first();
+
+    // 2. Sincronizamos usando el OBJETO, no el string
+    if ($role) {
+        $usuario->syncRoles([$role]);
+    }
+    // -----------------------------
+
+    return redirect()->back();
+}
 
     public function destroy(User $usuario)
     {
