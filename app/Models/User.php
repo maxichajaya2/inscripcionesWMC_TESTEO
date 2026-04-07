@@ -48,4 +48,10 @@ class User extends Authenticatable
         'password' => 'hashed',
     ];
 
+
+    public function getRoleConnection(): string
+{
+    return 'pgsql_second';
+}
+
 }

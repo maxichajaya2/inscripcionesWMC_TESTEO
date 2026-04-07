@@ -24,34 +24,37 @@ class UserController extends Controller
     }
 
     public function store(Request $request)
-    {
-        $request->validate([
-            'name'     => 'required|string|max:255',
-            'email'    => 'required|string|email|max:255|unique:users,email',
-            'password' => ['required', 'confirmed', Rules\Password::defaults()],
-            'role'     => 'required|string|exists:pgsql_second.roles,name', // <--- FIX
-        ], [
-            'email.unique' => 'Este correo electrónico ya está registrado en el sistema.',
+{
+    $request->validate([
+        'name'     => 'required|string|max:255',
+        'email'    => 'required|string|email|max:255|unique:users,email',
+        'password' => ['required', 'confirmed', Rules\Password::defaults()],
+        'role'     => 'required|string|exists:pgsql_second.roles,name', // Validamos en la DB correcta
+    ]);
+
+    try {
+        // 1. Creamos el usuario en DB principal
+        $user = User::create([
+            'name'     => $request->name,
+            'email'    => $request->email,
+            'password' => Hash::make($request->password),
         ]);
 
-        try {
-            $user = User::create([
-                'name'     => $request->name,
-                'email'    => $request->email,
-                'password' => Hash::make($request->password),
-            ]);
+        // 2. IMPORTANTE: Buscamos el rol explícitamente en la DB secundaria
+        // Usamos tu modelo personalizado Role que ya tiene la conexión pgsql_second
+        $role = Role::where('name', $request->role)->first();
 
-            // assignRole usará getRoleConnection() del modelo User para ir a pgsql_second
-            $user->assignRole($request->role);
-
-            return redirect()->back();
-
-        } catch (\Illuminate\Database\QueryException $e) {
-            return redirect()->back()->withErrors([
-                'email' => 'El correo ya existe en nuestra base de datos.'
-            ]);
+        // 3. Asignamos el objeto Rol (no solo el nombre)
+        if ($role) {
+            $user->assignRole($role);
         }
+
+        return redirect()->back();
+
+    } catch (\Exception $e) {
+        return redirect()->back()->withErrors(['email' => 'Error al crear: ' . $e->getMessage()]);
     }
+}
 
     public function update(Request $request, User $usuario)
     {
