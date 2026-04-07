@@ -151,9 +151,28 @@ const openModal = async (user = null) => {
     }, 50);
 };
 
+// const submit = async () => {
+//     const isValid = await validateForm();
+//     if (!isValid) return; // Bloqueamos el envío si hay errores
+
+//     const action = editingUser.value ? route('usuarios.update', editingUser.value.id) : route('usuarios.store');
+//     const method = editingUser.value ? 'put' : 'post';
+
+//     form[method](action, {
+//         onSuccess: () => {
+//             isModalOpen.value = false;
+//             displayToast(editingUser.value ? 'Usuario actualizado correctamente.' : 'Nuevo usuario creado.');
+//             form.reset();
+//         },
+//         preserveScroll: true
+//     });
+// };
+
+
 const submit = async () => {
+    // 1. Validamos formato con Yup (frontend)
     const isValid = await validateForm();
-    if (!isValid) return; // Bloqueamos el envío si hay errores
+    if (!isValid) return;
 
     const action = editingUser.value ? route('usuarios.update', editingUser.value.id) : route('usuarios.store');
     const method = editingUser.value ? 'put' : 'post';
@@ -161,8 +180,14 @@ const submit = async () => {
     form[method](action, {
         onSuccess: () => {
             isModalOpen.value = false;
-            displayToast(editingUser.value ? 'Usuario actualizado correctamente.' : 'Nuevo usuario creado.');
+            displayToast(editingUser.value ? 'Actualizado.' : 'Creado.');
             form.reset();
+        },
+        onError: (errors) => {
+            // Si el error es de email, mostramos un toast rápido para avisar
+            if (errors.email) {
+                displayToast("Atención: " + errors.email);
+            }
         },
         preserveScroll: true
     });
