@@ -13,17 +13,16 @@ class RoleSeeder extends Seeder
 {
     public function run(): void
     {
-        // 1. LIMPIEZA INICIAL
+        // 1. LIMPIEZA INICIAL (Uso de DB directo para evitar fallos de modelo)
         DB::connection('pgsql_second')->statement('SET CONSTRAINTS ALL DEFERRED');
 
-        // Limpieza de tablas pivote
         DB::connection('pgsql_second')->table('model_has_permissions')->delete();
         DB::connection('pgsql_second')->table('model_has_roles')->delete();
         DB::connection('pgsql_second')->table('role_has_permissions')->delete();
 
-        // Limpieza de tablas principales (Sin el ->query())
-        Permission::on('pgsql_second')->delete();
-        Role::on('pgsql_second')->delete();
+        // Usamos Query Builder para borrar, que es lo más seguro en conexiones cruzadas
+        DB::connection('pgsql_second')->table('permissions')->delete();
+        DB::connection('pgsql_second')->table('roles')->delete();
 
         // Limpiar caché de Spatie
         app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
@@ -38,40 +37,49 @@ class RoleSeeder extends Seeder
         ];
 
         foreach ($permisos as $permiso) {
+            // Usamos on() para crear
             Permission::on('pgsql_second')->create(['name' => $permiso, 'guard_name' => 'web']);
         }
 
-        // 3. CREAR ROLES Y ASIGNAR PERMISOS
+        // 3. CREAR ROLES
         $roleAdmin = Role::on('pgsql_second')->create(['name' => 'admin', 'guard_name' => 'web']);
-        $roleAdmin->givePermissionTo(Permission::on('pgsql_second')->all());
-
         $roleAsociado = Role::on('pgsql_second')->create(['name' => 'asociado', 'guard_name' => 'web']);
-        $roleAsociado->givePermissionTo(Permission::on('pgsql_second')->whereIn('name', ['gestionar cupones', 'ver dashboard admin'])->get());
-
         $roleParticipante = Role::on('pgsql_second')->create(['name' => 'participante', 'guard_name' => 'web']);
-        $roleParticipante->givePermissionTo(Permission::on('pgsql_second')->where('name', 'acceso participante')->first());
 
-        // 4. CREAR USUARIOS (Opcional - Revisa si los quieres borrar antes)
+        // 4. ASIGNAR PERMISOS (Aquí estaba el error, usamos get() en lugar de all())
+        $todosLosPermisos = Permission::on('pgsql_second')->get();
+        $roleAdmin->syncPermissions($todosLosPermisos);
+
+        $permisosAsociado = Permission::on('pgsql_second')->whereIn('name', ['gestionar cupones', 'ver dashboard admin'])->get();
+        $roleAsociado->syncPermissions($permisosAsociado);
+
+        $permisoParticipante = Permission::on('pgsql_second')->where('name', 'acceso participante')->get();
+        $roleParticipante->syncPermissions($permisoParticipante);
+
+        // 5. USUARIOS (Asegúrate de que User esté en la DB correcta)
         User::whereIn('email', ['admin@wmc.com', 'asociado@wmc.com', 'user@wmc.com'])->delete();
 
-        User::create([
+        $user1 = User::create([
             'name' => 'Administrador WMC',
             'email' => 'admin@wmc.com',
             'password' => Hash::make('admin123'),
-        ])->assignRole($roleAdmin);
+        ]);
+        $user1->assignRole($roleAdmin);
 
-        User::create([
+        $user2 = User::create([
             'name' => 'Personal Asociado',
             'email' => 'asociado@wmc.com',
             'password' => Hash::make('asociado123'),
-        ])->assignRole($roleAsociado);
+        ]);
+        $user2->assignRole($roleAsociado);
 
-        User::create([
+        $user3 = User::create([
             'name' => 'Participante WMC',
             'email' => 'user@wmc.com',
             'password' => Hash::make('user123'),
-        ])->assignRole($roleParticipante);
+        ]);
+        $user3->assignRole($roleParticipante);
 
-        $this->command->info('Seed completado con éxito en pgsql_second.');
+        $this->command->info('Seed completado exitosamente.');
     }
 }
