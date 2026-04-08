@@ -151,18 +151,54 @@ const openModal = async (cupon = null) => {
     await validateForm();
 };
 
+// const submit = async () => {
+//     const isValid = await validateForm();
+//     if (!isValid) return; // Si hay errores, detenemos el envío
+
+//     const action = editingCupon.value ? route('cupones.update', editingCupon.value.id) : route('cupones.store');
+//     const method = editingCupon.value ? 'put' : 'post';
+
+//     form[method](action, {
+//         onSuccess: () => {
+//             isModalOpen.value = false;
+//             displayToast(editingCupon.value ? 'Cupón de empresa actualizado.' : 'Nuevo cupón creado.');
+//             form.reset();
+//         },
+//         preserveScroll: true
+//     });
+// };
+
 const submit = async () => {
     const isValid = await validateForm();
-    if (!isValid) return; // Si hay errores, detenemos el envío
+    if (!isValid) return;
 
-    const action = editingCupon.value ? route('cupones.update', editingCupon.value.id) : route('cupones.store');
-    const method = editingCupon.value ? 'put' : 'post';
+    const isEditing = !!editingCupon.value;
+    const action = isEditing ? route('cupones.update', editingCupon.value.id) : route('cupones.store');
+    const method = isEditing ? 'put' : 'post';
 
     form[method](action, {
         onSuccess: () => {
             isModalOpen.value = false;
-            displayToast(editingCupon.value ? 'Cupón de empresa actualizado.' : 'Nuevo cupón creado.');
+
+            // Mensaje dinámico y amigable
+            // Usamos form.codigo o form.nombre dependiendo de cómo se llame tu campo
+            const identificador = form.codigo || form.nombre || 'del cupón';
+
+            const message = isEditing
+                ? `¡Actualizado! Los cambios en el cupón "${identificador}" se guardaron con éxito.`
+                : `¡Excelente! El cupón "${identificador}" ha sido generado correctamente.`;
+
+            displayToast(message);
+
             form.reset();
+        },
+        onError: (errors) => {
+            // Manejo de errores específicos si los hay (ej: código duplicado)
+            if (errors.codigo) {
+                displayToast(`Error: El código "${form.codigo}" ya está registrado.`);
+            } else {
+                displayToast("Vaya, hubo un inconveniente al procesar el cupón. Revisa los datos.");
+            }
         },
         preserveScroll: true
     });

@@ -14,7 +14,10 @@ class UserController extends Controller
     public function index()
     {
         // Cargamos usuarios de DB1 y Roles de DB2 (via modelo Role)
-        $usuarios = User::with('roles')->latest()->get();
+       $usuarios = User::with('roles')
+        ->where('id', '!=', auth()->id())
+        ->latest()
+        ->get();
         $roles = Role::all();
 
         return inertia('Admin/Usuarios/Index', [
@@ -25,6 +28,7 @@ class UserController extends Controller
 
     public function store(Request $request)
 {
+
     $request->validate([
         'name'     => 'required|string|max:255',
         'email'    => 'required|string|email|max:255|unique:users,email',

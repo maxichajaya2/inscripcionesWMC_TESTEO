@@ -152,8 +152,9 @@ const openModal = async (user = null) => {
 };
 
 // const submit = async () => {
+//     // 1. Validamos formato con Yup (frontend)
 //     const isValid = await validateForm();
-//     if (!isValid) return; // Bloqueamos el envío si hay errores
+//     if (!isValid) return;
 
 //     const action = editingUser.value ? route('usuarios.update', editingUser.value.id) : route('usuarios.store');
 //     const method = editingUser.value ? 'put' : 'post';
@@ -161,8 +162,14 @@ const openModal = async (user = null) => {
 //     form[method](action, {
 //         onSuccess: () => {
 //             isModalOpen.value = false;
-//             displayToast(editingUser.value ? 'Usuario actualizado correctamente.' : 'Nuevo usuario creado.');
+//             displayToast(editingUser.value ? 'Actualizado.' : 'Creado.');
 //             form.reset();
+//         },
+//         onError: (errors) => {
+//             // Si el error es de email, mostramos un toast rápido para avisar
+//             if (errors.email) {
+//                 displayToast("Atención: " + errors.email);
+//             }
 //         },
 //         preserveScroll: true
 //     });
@@ -174,24 +181,35 @@ const submit = async () => {
     const isValid = await validateForm();
     if (!isValid) return;
 
-    const action = editingUser.value ? route('usuarios.update', editingUser.value.id) : route('usuarios.store');
-    const method = editingUser.value ? 'put' : 'post';
+    const isEditing = !!editingUser.value;
+    const action = isEditing ? route('usuarios.update', editingUser.value.id) : route('usuarios.store');
+    const method = isEditing ? 'put' : 'post';
 
     form[method](action, {
         onSuccess: () => {
             isModalOpen.value = false;
-            displayToast(editingUser.value ? 'Actualizado.' : 'Creado.');
+
+            // Mensaje interactivo y personalizado
+            const message = isEditing
+                ? `¡Excelente! Los datos de "${form.name}" han sido actualizados correctamente.`
+                : `¡Éxito! El usuario "${form.name}" ha sido registrado en el sistema WMC.`;
+
+            displayToast(message);
+
             form.reset();
         },
         onError: (errors) => {
-            // Si el error es de email, mostramos un toast rápido para avisar
+            // Manejo de errores más amigable
             if (errors.email) {
-                displayToast("Atención: " + errors.email);
+                displayToast(`Atención: El correo "${form.email}" ya se encuentra en uso o no es válido.`);
+            } else {
+                displayToast("Vaya, parece que hubo un problema al procesar la solicitud.");
             }
         },
         preserveScroll: true
     });
 };
+
 
 const confirmDelete = (user) => {
     userToDelete.value = user;
