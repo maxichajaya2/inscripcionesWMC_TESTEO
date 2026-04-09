@@ -111,7 +111,7 @@ const scrollToCategories = () => {
 <template>
     <AppLayout class="bg-gradient-wmc">
         <div class="px-6 py-12 mx-auto max-w-6xl min-h-[80vh] flex flex-col justify-center font-sans">
-            <div class="preventa-banner-home animate-fade-in-down mb-8">
+            <!-- <div class="preventa-banner-home animate-fade-in-down mb-8">
                 <div class="banner-home-content p-3 md:p-6 flex items-center gap-3">
                     <div class="banner-home-icon shrink-0">
                         <span class="text-xl md:text-2xl">⏳</span>
@@ -128,7 +128,7 @@ const scrollToCategories = () => {
                         </p>
                     </div>
                 </div>
-            </div>
+            </div> -->
             <div id="titulo_inicial" class="mb-12 text-left animate-fade-in-down">
                 <h1 class="text-4xl md:text-5xl font-black text-yellow-price tracking-tight mb-2">
                     World Mining Congress <span class="text-white">2026</span>
