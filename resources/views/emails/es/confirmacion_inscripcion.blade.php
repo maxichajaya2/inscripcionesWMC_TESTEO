@@ -304,7 +304,7 @@
                                                 style="background: linear-gradient(90deg, #f97316 0%, #fb923c 100%); padding: 12px; text-align: center;">
                                                 <h2
                                                     style="color: #ffffff; margin: 0; font-size: 18px; font-weight: 900; letter-spacing: 1px; text-transform: uppercase;">
-                                                    Courtesy Pass
+                                                    Discount Voucher
                                                 </h2>
                                             </div>
 

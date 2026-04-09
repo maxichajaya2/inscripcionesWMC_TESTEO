@@ -620,7 +620,8 @@ const fillBillingData = (p) => {
     if (!p) return;
 
     const nombreCompleto = `${p.nombres || ''} ${p.apellido_paterno || ''}`.trim();
-    const docTipo = p.id_tipo_documento || p.tipo_doc || 1;
+    // CAMBIO AQUÍ: ID 3 por defecto si es extranjero y no tiene tipo de documento
+    const docTipo = p.id_tipo_documento || p.tipo_doc || (isPeruanoGlobal.value ? 1 : 3);
     const docNum = p.documento || '';
 
     tipoDocumentoEmpresa.value = docTipo;
@@ -644,32 +645,65 @@ const fillBillingData = (p) => {
     block_direction.value = (docTipo == 2);
 };
 
+// --- LÓGICA DE WATCH UNIFICADA Y CORREGIDA ---
+// watch(() => props.data_persona, (newVal) => {
+//     if (!newVal) return;
+//     const data = newVal.persona ? newVal.persona : newVal;
+
+//     if (isPeruanoGlobal.value) {
+//         // PERUANO
+//         if (data.documentoEmpresa || data.razonSocial || data.documento) {
+//             fillBillingData(data);
+//         }
+//     } else {
+//         // EXTRANJERO
+//         if (data.documentoEmpresa || data.razonSocial) {
+//             // Si ya hay datos previos de facturación, llenarlos
+//             fillBillingData(data);
+//         } else {
+//             // Si no hay datos, limpiar y poner ID 3 por defecto
+//             tipoDocumentoEmpresa.value = 3;
+//             setValues({
+//                 ...values,
+//                 documentoEmpresa: '',
+//                 razonSocial: '',
+//                 direccionEmpresa: '',
+//                 responsable: '',
+//                 correo_facturador: ''
+//             });
+//         }
+//     }
+// }, { immediate: true, deep: true });
+
+// --- LÓGICA DE WATCH UNIFICADA Y CORREGIDA ---
 watch(() => props.data_persona, (newVal) => {
-    if (newVal) {
-        // Intentamos con newVal.persona o con newVal directamente
-        const data = newVal.persona ? newVal.persona : newVal;
-        fillBillingData(data);
-    }
-}, { immediate: true, deep: true });
+    if (!newVal) return;
+    const data = newVal.persona ? newVal.persona : newVal;
 
-
-watch(() => props.data_persona, (newVal) => {
-
-    const docTipo = newVal.id_tipo_documento || newVal.tipo_doc;
-
-    // console.log('doc', docTipo)
-
-    console.log(newVal);
-
-    if (newVal) {
-
-        // console.log('llego hasta aqui')
-        if (docTipo && docTipo !== 1 && docTipo !== 2) {
-
-            // console.log("Extranjero detectado: Autocompletando...");
-            fillBillingData(newVal.persona);
+    if (isPeruanoGlobal.value) {
+        // PERUANO
+        // Quitamos "data.documento" para que no use el DNI personal por defecto
+        if (data.documentoEmpresa || data.razonSocial) {
+            fillBillingData(data);
         } else {
-
+            // Si no hay datos de facturación previos, seleccionamos DNI (1) y limpiamos
+            tipoDocumentoEmpresa.value = 1;
+            setValues({
+                ...values,
+                documentoEmpresa: '',
+                razonSocial: '',
+                direccionEmpresa: '',
+                responsable: '',
+                correo_facturador: ''
+            });
+        }
+    } else {
+        // EXTRANJERO
+        if (data.documentoEmpresa || data.razonSocial) {
+            fillBillingData(data);
+        } else {
+            // Si no hay datos de facturación previos, seleccionamos ID 3 y limpiamos
+            tipoDocumentoEmpresa.value = 3;
             setValues({
                 ...values,
                 documentoEmpresa: '',
@@ -681,6 +715,8 @@ watch(() => props.data_persona, (newVal) => {
         }
     }
 }, { immediate: true, deep: true });
+
+// ----------------------------------------------
 
 const filteredDocTypes = computed(() => {
     const p = props.data_persona?.persona || props.data_persona;
