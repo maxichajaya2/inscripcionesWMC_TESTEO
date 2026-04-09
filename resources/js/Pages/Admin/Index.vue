@@ -17,7 +17,7 @@ const props = defineProps({
 
             <div>
                 <h2 class="font-black text-2xl text-slate-800 tracking-tight">Resumen General</h2>
-                <p class="text-sm text-slate-500 mt-1">Métricas y actividad reciente de la plataforma WMC 2026.</p>
+                <p class="text-sm text-slate-500 mt-1">Métricas y actividad reciente de la plataforma PROEXPLO 2026.</p>
             </div>
 
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">

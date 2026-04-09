@@ -8,11 +8,15 @@ use App\Models\Cupon;
 // use Spatie\Permission\Models\Role;
 use App\Models\Role;
 use Illuminate\Http\Request;
+use App\Models\Inscripcion;
 
 class AdminController extends Controller
 {
     public function index()
     {
+
+        $inscripcion = Inscripcion::with(['persona', 'facturacion'])->first();
+
         // 1. Estadísticas Generales (Tarjetas)
         $stats = [
             'total_usuarios' => User::count(),

@@ -13,7 +13,7 @@ class Cupon extends Model
     protected $table = 'cupones';
 
     protected $fillable = [
-        'codigo_cupon',
+        'codigo_cupon', // <-- ¡Este era el que faltaba!
         'tipo_descuento',
         'valor',
         'razon_social',
@@ -25,5 +25,12 @@ class Cupon extends Model
         'fecha_inicio',
         'fecha_fin',
         'is_active',
+        'is_delete',
     ];
+
+    public function inscritos()
+    {
+        // Un cupón tiene muchas inscripciones
+        return $this->hasMany(Inscripcion::class, 'id_cupon');
+    }
 }

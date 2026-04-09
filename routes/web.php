@@ -14,12 +14,14 @@ use App\Http\Controllers\Asociados\AsociadosController;
 use App\Http\Controllers\Admin\RoleController;
 use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\CuponController;
+use App\Http\Controllers\Admin\InscritosController;
 
 /*
 |--------------------------------------------------------------------------
 | Web Routes
 |--------------------------------------------------------------------------
 */
+
 
 // --- RUTAS DE ADMINISTRACIÓN ---
 Route::middleware(['auth', 'role:admin'])->group(function () {
@@ -31,14 +33,19 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
     Route::delete('/admin/roles/{role}', [RoleController::class, 'destroy'])->name('roles.destroy');
 
     Route::resource('usuarios', UserController::class)->except(['create', 'show', 'edit']);
-    Route::resource('cupones', CuponController::class)->except(['create', 'show', 'edit']);
-
+    Route::resource('cupones', CuponController::class)->except(['create', 'edit']);
+    Route::get('/inscritos', [InscritosController::class, 'index'])->name('inscritos.index');
+    Route::get('/cupones/{cupone}', [CuponController::class, 'show'])->name('cupones.show');
+    Route::get('/cupones/{cupon}/usos', [CuponController::class, 'getUsos'])->name('cupones.usos');
 });
 
 // --- RUTAS DE ASOCIADOS ---
-Route::middleware(['auth', 'role:asociado|admin|Asociado|Admin'])->group(function () {
+Route::middleware(['auth', 'role:asociado|admin'])->group(function () {
     Route::get('/asociados/index', [AsociadosController::class, 'index'])->name('asociados.index');
-     Route::resource('cupones', CuponController::class)->except(['create', 'show', 'edit']);
+    Route::resource('cupones', CuponController::class)->except(['create', 'edit']);
+    Route::get('/inscritos', [InscritosController::class, 'index'])->name('inscritos.index');
+    Route::get('/cupones/{cupone}', [CuponController::class, 'show'])->name('cupones.show');
+    Route::get('/cupones/{cupon}/usos', [CuponController::class, 'getUsos'])->name('cupones.usos');
 });
 
 // --- RUTAS PÚBLICAS / INSCRIPCIÓN ---

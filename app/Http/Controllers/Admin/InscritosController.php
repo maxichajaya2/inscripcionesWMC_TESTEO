@@ -3,48 +3,16 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Models\Cupon;
 use Illuminate\Http\Request;
 use App\Models\Inscripcion;
-use App\Models\Niubiz;
+use Inertia\Inertia;
 
-
-class CuponController extends Controller
+class InscritosController extends Controller
 {
+
     public function index()
     {
-        // Traemos SOLO los cupones que no han sido "eliminados" (is_delete = false)
-        // y los ordenamos por el más reciente
-        // $cupones = Cupon::where('is_delete', false)->latest()->get();
-
-        // $personas= Cupon::with(['inscritos.persona'])->get();
-
-        $cupones = Cupon::with(['inscritos.persona.tipoDocumento']) // <--- Agregamos .tipoDocumento
-            ->where('is_delete', false)
-            ->latest()
-            ->get();
-
-        return inertia('Admin/Cupones/Index', [
-            'cupones' => $cupones
-        ]);
-    }
-
-    public function show(Request $request, Cupon $cupone)
-    {
-        // Cargamos los inscritos de este cupón específico con paginación
-        $inscritos = $cupone->inscritos()
-            ->with(['persona.tipoDocumento'])
-            ->when($request->search, function ($query, $search) {
-                $query->whereHas('persona', function ($q) use ($search) {
-                    $q->where('nombres', 'like', "%{$search}%")
-                        ->orWhere('documento', 'like', "%{$search}%");
-                });
-            })
-            ->paginate(15)
-            ->withQueryString();
-
-
-         $inscripciones = Inscripcion::with([
+        $inscripciones = Inscripcion::with([
             'persona.tipoDocumento',
             'facturacion.tipoDocumentoFacturador',
             'cupon',
@@ -135,75 +103,8 @@ class CuponController extends Controller
             ->values(); // <-- IMPORTANTE: values() reordena los índices tras el filter() inicial para que Vue no se rompa
 
 
-        return inertia('Admin/Cupones/Detalles', [
-            'cupon' => $cupone,
-            'inscritos' => $inscritos,
-            'inscripciones' => $inscripciones,
-            'filters' => $request->only(['search'])
+        return Inertia::render('Admin/Inscritos/Index', [
+            'inscritos' => $inscripciones
         ]);
     }
-
-
-
-    public function store(Request $request)
-    {
-        // dd($request->all());
-        $validated = $request->validate([
-            'codigo_cupon' => 'required|string|max:100|unique:pgsql_second.cupones,codigo_cupon',
-            'tipo_descuento' => 'required|string|max:50',
-            'valor' => 'required|numeric', // Cambié integer por numeric por si usas decimales (ej. porcentajes)
-            'razon_social' => 'required|string|max:255', // Ajustado a required como pediste antes
-            'tipo_documento' => 'required|string|max:10',
-            'num_documento' => 'required|string|max:100',
-            'eci_cod' => 'required|string|max:100',
-            'limite_usos' => 'required|integer|min:1',
-            'fecha_inicio' => 'required|date',
-            'fecha_fin' => 'required|date|after_or_equal:fecha_inicio',
-            'is_active' => 'boolean',
-        ]);
-
-        $validated['usos_actuales'] = 0;
-        $validated['is_active'] = $request->is_active ?? false;
-        // Por defecto al crear, nos aseguramos de que no esté eliminado
-        $validated['is_delete'] = false;
-
-        Cupon::create($validated);
-
-        return redirect()->back();
-    }
-
-    public function update(Request $request, Cupon $cupone)
-    {
-        $validated = $request->validate([
-            'codigo_cupon' => 'required|string|max:100|unique:pgsql_second.cupones,codigo_cupon,' . $cupone->id,
-            'tipo_descuento' => 'required|string|max:50',
-            'valor' => 'required|numeric',
-            'razon_social' => 'required|string|max:255',
-            'tipo_documento' => 'required|string|max:10',
-            'num_documento' => 'required|string|max:100',
-            'eci_cod' => 'required|string|max:100',
-            'limite_usos' => 'required|integer|min:1',
-            'fecha_inicio' => 'required|date',
-            'fecha_fin' => 'required|date|after_or_equal:fecha_inicio',
-            'is_active' => 'boolean',
-        ]);
-
-        $validated['is_active'] = $request->is_active ?? false;
-
-        $cupone->update($validated);
-
-        return redirect()->back();
-    }
-
-    public function destroy(Cupon $cupone)
-    {
-        // Eliminación lógica: Cambiamos el estado de is_delete a true
-        // Usamos save() directamente en lugar de update() para no lidiar con el $fillable aquí
-        $cupone->is_delete = true;
-        $cupone->save();
-
-        return redirect()->back();
-    }
-
-
 }

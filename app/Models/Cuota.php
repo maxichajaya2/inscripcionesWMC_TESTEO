@@ -28,4 +28,10 @@ class Cuota extends Model
     {
         return $this->belongsTo(\App\Models\Facturacion::class, 'id_facturacion');
     }
+
+    public function niubiz()
+    {
+        // Relacionamos id_compra de niubiz con el id de la cuota
+        return $this->hasOne(Niubiz::class, 'id_compra', 'id');
+    }
 }
