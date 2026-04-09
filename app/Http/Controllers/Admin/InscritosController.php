@@ -19,7 +19,7 @@ class InscritosController extends Controller
             'facturacion.cuotas.niubiz' => function ($query) {
                 // Filtramos para que solo traiga los registros pagados de Niubiz y del evento 6
                 $query->where('estado', 'pagado')
-                    ->where('id_evento', 6);
+                    ->where('id_evento', 1);
             }
         ])
             ->orderBy('id', 'desc')
